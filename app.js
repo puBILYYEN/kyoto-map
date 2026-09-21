@@ -151,7 +151,10 @@ function renderMarkers() {
     el.style.boxShadow = '0 0 3px rgba(0,0,0,0.4)';
     el.style.background = CATEGORY_META[spot.categories[0]].color;
     el.style.cursor = 'pointer';
-    el.style.position = 'relative';   // 名稱標籤要相對這個圓點定位
+    // 名稱標籤用 position:absolute 定位，不需要再手動設父層 position——
+    // MapLibre 自己的 .maplibregl-marker 規則本來就是 position:absolute，
+    // 已經是子層的定位基準。手動覆寫成 relative 會蓋掉 MapLibre 的絕對定位，
+    // 讓標記改用一般文件排版，縮放時就會跟著跑掉（這是上一版的 bug）。
     // 被勾選時要在圓點中央顯示順序數字，所以用 flex 置中
     el.style.alignItems = 'center';
     el.style.justifyContent = 'center';
