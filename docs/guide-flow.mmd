@@ -1,0 +1,38 @@
+---
+title: 線上導遊 — 一次問答的完整流程
+---
+sequenceDiagram
+    autonumber
+    actor U as 使用者
+    participant A as app.js<br/>（瀏覽器）
+    participant D as data.js<br/>114 個景點
+    participant R as Render<br/>server.js
+    participant AI as AI 供應商
+
+    Note over A: 網頁載入時就先敲 /healthz<br/>把休眠的 Render 叫醒
+
+    U->>A: 勾選景點、輸入問題
+    A->>A: 檢查網路與設定<br/>沒網路→代號 E1
+    A->>D: 依問題做關鍵字檢索<br/>兩字一組 + 同義詞表
+    D-->>A: 最相關的 6 個景點
+
+    A->>A: 組出畫面狀態<br/>已選景點 + 介紹 + 預約規定<br/>各段直線距離 + 檢索結果
+
+    A->>R: POST /ask（不含任何金鑰）
+    R->>R: 檢查來源白名單<br/>不符→ E403
+    R->>R: 檢查流量限制<br/>超過→ E429
+    R->>R: 檢查 AI 設定<br/>是佔位值→ E500
+
+    R->>AI: 轉送（此時才加上金鑰）
+    alt 成功
+        AI-->>R: 回答
+        R-->>A: { answer }
+        A-->>U: 顯示導遊的回答
+    else 失敗或逾時
+        AI--xR: 錯誤
+        R-->>A: 502 + 錯誤說明
+        A->>A: 細節寫進主控台
+        A-->>U: 「導遊現在沒辦法回答…（代號 E502）」
+    end
+
+    Note over A,R: 第一次請求若失敗會自動重試一次<br/>並顯示「後端休眠中，正在喚醒…」

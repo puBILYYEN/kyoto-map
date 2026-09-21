@@ -1,0 +1,28 @@
+---
+title: 部署流程 — 一份 repo，兩個平台
+---
+graph LR
+    subgraph repo["🐙 GitHub — puBILYYEN/kyoto-map（main）"]
+        direction TB
+        front["根目錄<br/>index.html · app.js<br/>data.js · styles.css · sw.js"]
+        be["ai-backend/<br/>server.js · package.json"]
+        vi[".vercelignore<br/>排除 ai-backend/"]
+        ry["render.yaml<br/>rootDir: ai-backend"]
+    end
+
+    push(["git push"]) --> repo
+
+    repo -->|"webhook 自動部署<br/>根目錄無 package.json<br/>→ 當作靜態網站"| vercel["☁️ Vercel<br/>kyoto-trip-map.vercel.app"]
+    repo -->|"Blueprint 讀 render.yaml<br/>autoDeploy 關閉<br/>→ 需手動 Deploy"| render["🔧 Render<br/>kyoto-ai.onrender.com"]
+
+    vi -.->|"讓 Vercel 看不到後端"| vercel
+    ry -.->|"指定子目錄"| render
+    front --> vercel
+    be --> render
+
+    classDef a fill:#e8f0e4,stroke:#3c8a5b,stroke-width:2px,color:#2b2620
+    classDef b fill:#fbeee6,stroke:#b5482b,stroke-width:2px,color:#2b2620
+    classDef c fill:#eceaf3,stroke:#5b3a8e,color:#2b2620
+    class front,vercel a
+    class be,render b
+    class vi,ry,push c

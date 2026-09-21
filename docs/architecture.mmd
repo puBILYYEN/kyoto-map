@@ -1,0 +1,51 @@
+---
+title: 京都行程景點地圖 — 執行時架構
+---
+graph TB
+    subgraph device["📱 使用者裝置（在日本以 Android 為主）"]
+        direction TB
+        browser["瀏覽器"]
+        sw["Service Worker<br/>sw.js"]
+        cache[("快取<br/>網站檔案<br/>地圖圖磚")]
+        browser --> sw
+        sw <--> cache
+    end
+
+    subgraph site["☁️ Vercel — 純靜態網站（無建置流程）"]
+        direction TB
+        html["index.html"]
+        app["app.js<br/>地圖 · 清單 · 路線<br/>景點檢索 · 聊天"]
+        data["data.js<br/>114 景點 · 69 句日語<br/>行前準備 · 設定"]
+        css["styles.css"]
+        html --> css
+        html --> app
+        app --> data
+    end
+
+    subgraph ext["🌐 需要網路的外部服務"]
+        direction TB
+        proxy["Render — server.js<br/>保管金鑰 · CORS · 流量限制"]
+        ai["AI 供應商<br/>OpenAI 相容端點"]
+        fb[("Firebase Firestore<br/>共享清單")]
+        proxy -->|"加上金鑰"| ai
+        ai -->|"回答"| proxy
+    end
+
+    tiles["OpenFreeMap<br/>地圖圖磚"]
+    cdn["unpkg<br/>MapLibre GL JS"]
+    gmaps["Google Maps<br/>路線 · 地點頁"]
+
+    sw -->|"快取沒有才連網"| html
+    app -->|"POST /ask<br/>問題＋畫面狀態＋檢索結果"| proxy
+    proxy -->|"答案或錯誤代號"| app
+    app <-->|"SDK 動態載入"| fb
+    app --> tiles
+    html --> cdn
+    app -->|"開新分頁"| gmaps
+
+    classDef offline fill:#e8f0e4,stroke:#3c8a5b,stroke-width:2px,color:#2b2620
+    classDef online fill:#fbeee6,stroke:#b5482b,stroke-width:2px,color:#2b2620
+    classDef neutral fill:#eceaf3,stroke:#5b3a8e,color:#2b2620
+    class html,app,data,css,sw,cache,browser offline
+    class proxy,ai,fb online
+    class tiles,cdn,gmaps neutral

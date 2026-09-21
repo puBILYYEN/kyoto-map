@@ -1,0 +1,23 @@
+---
+title: 沒有網路時，哪些功能還能用
+---
+graph LR
+    start(["在日本打開網頁<br/>沒有訊號"]) --> sw{"Service Worker<br/>有快取嗎？"}
+
+    sw -->|"沒有<br/>（從未在有網路時開過）"| fail["❌ 打不開<br/><i>出發前務必先開一次</i>"]
+    sw -->|"有"| load["✅ 網頁正常載入<br/>頂端顯示離線提示"]
+
+    load --> ok1["✅ 114 個景點<br/>瀏覽・搜尋・分類・勾選"]
+    load --> ok2["✅ 日語小抄 69 句<br/>住宿地址・緊急電話"]
+    load --> ok3["✅ 行前準備<br/>證件與線上登錄"]
+    load --> ok4["✅ 預約標示與篩選"]
+    load --> half["⚠️ 地圖<br/>只看得到之前載過的範圍"]
+    load --> no1["❌ 線上導遊<br/>代號 E1"]
+    load --> no2["❌ 共享清單"]
+
+    classDef good fill:#e8f0e4,stroke:#3c8a5b,stroke-width:2px
+    classDef warn fill:#fdf4e3,stroke:#8a6d3b,stroke-width:2px
+    classDef bad fill:#f7e4e0,stroke:#b5482b,stroke-width:2px
+    class ok1,ok2,ok3,ok4,load good
+    class half warn
+    class no1,no2,fail bad

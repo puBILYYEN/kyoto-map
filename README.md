@@ -5,6 +5,14 @@
 軍事迷織田信長之旅 / 宇治抹茶體驗之旅」八大分類瀏覽，
 點景點看詳細介紹，勾選多個景點後可以一鍵開啟 Google 地圖的大眾運輸路線。
 
+## 系統圖
+
+架構圖放在 [`docs/`](docs/)，GitHub 會直接渲染：
+[執行時架構](docs/architecture.mmd) ·
+[部署流程](docs/deploy.mmd) ·
+[導遊問答流程](docs/guide-flow.mmd) ·
+[離線時的行為](docs/offline.mmd)
+
 ## 檔案結構
 
 ```
