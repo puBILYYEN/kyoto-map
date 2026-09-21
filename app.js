@@ -394,6 +394,52 @@ function showPrep() {
   updateMarkerVisibility();
 }
 
+// 日語求助小抄
+function showPhrases() {
+  activeSpotId = null;
+  const a = PHRASES.address;
+  document.getElementById('detailBody').innerHTML = `
+    <div class="detail-header"><h2>${PHRASES.title}</h2></div>
+    <div class="detail-area">${PHRASES.note}</div>
+
+    <div class="phrase-address">
+      <div class="phrase-address-label">${a.label}</div>
+      <div class="phrase-ja phrase-ja-big">${a.ja}</div>
+      <div class="phrase-sound">${a.romaji}</div>
+      <div class="phrase-sound">${a.sound}</div>
+      <div class="phrase-tip">${a.tip}</div>
+    </div>
+
+    <div class="prep-group">
+      <h3>☎️ 緊急電話</h3>
+      <ul class="phrase-tel">
+        ${PHRASES.emergency.map(e => `
+          <li>
+            <a href="tel:${e.number.replace(/[^0-9+]/g, '')}">${e.number}</a>
+            <b>${e.label}</b>
+            <span>${e.note}</span>
+          </li>`).join('')}
+      </ul>
+    </div>
+
+    ${PHRASES.groups.map(g => `
+      <div class="prep-group">
+        <h3>${g.heading}</h3>
+        <ul class="phrase-list">
+          ${g.items.map(it => `
+            <li>
+              <div class="phrase-zh">${it.zh}</div>
+              <div class="phrase-ja">${it.ja}</div>
+              <div class="phrase-sound">${it.sound}</div>
+            </li>`).join('')}
+        </ul>
+      </div>`).join('')}
+  `;
+  if (mobileQuery.matches) openDetailSheet();
+  renderList();
+  updateMarkerVisibility();
+}
+
 // 單一景點的 Google 地圖頁面（可看照片、評價、營業時間）
 // 有填 address 就用地址查，比用概略座標精準
 function buildPlaceUrl(spot) {
@@ -486,6 +532,7 @@ document.getElementById('bookingOnly').addEventListener('change', (e) => {
 });
 
 document.getElementById('prepBtn').addEventListener('click', showPrep);
+document.getElementById('phraseBtn').addEventListener('click', showPhrases);
 
 // ---------- 初始化 ----------
 renderTabs();
