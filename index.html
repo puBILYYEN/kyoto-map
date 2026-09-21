@@ -6,6 +6,10 @@
 <title>京都行程景點地圖</title>
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
 <link rel="stylesheet" href="styles.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#b5482b">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="icon-192.png">
 </head>
 <body>
   <div id="app" data-mview="list" data-detail="closed">
@@ -20,6 +24,10 @@
       </div>
       <p class="subtitle">依分類瀏覽 · 點景點看詳細介紹 · 勾選多個景點可開啟大眾運輸路線</p>
     </header>
+
+    <div class="offline-bar" id="offlineBar" hidden>
+      📴 目前沒有網路。景點資料、日語小抄、行前準備仍可正常使用；地圖與線上導遊需要連線。
+    </div>
 
     <div class="main">
       <aside class="sidebar">

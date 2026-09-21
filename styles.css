@@ -62,6 +62,16 @@ html, body {
 .prep-btn-primary:hover { background: #9c3d24; }
 .topbar .subtitle { margin: 0; font-size: 13px; color: var(--text-muted); }
 
+.offline-bar {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  background: #4a4034;
+  color: #fdf6e9;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.offline-bar[hidden] { display: none; }
+
 .main {
   flex: 1;
   display: flex;
@@ -547,19 +557,20 @@ html, body {
     border-right: none;
   }
   /* 用 visibility 而不是 display:none —— 地圖容器要一直保有正確尺寸，
-     否則切回地圖時 MapLibre 會算不出寬高而顯示空白。
-     但 MapLibre 的版權控制項會自己宣告 visibility:visible 而穿透出來，
-     所以再用 z-index 讓不透明的側欄實際蓋住它，雙重保險。 */
-  .sidebar, .map-area { z-index: 1; }
-  #app[data-mview="list"] .sidebar,
-  #app[data-mview="sel"] .sidebar,
-  #app[data-mview="map"] .map-area { z-index: 2; }
-
+     否則切回地圖時 MapLibre 會算不出寬高而顯示空白 */
   #app[data-mview="list"] .map-area,
   #app[data-mview="sel"] .map-area,
   #app[data-mview="map"] .sidebar {
     visibility: hidden;
     pointer-events: none;
+  }
+  /* MapLibre 的版權等控制項會自己宣告 visibility:visible 而穿透到清單上，
+     所以在不是地圖的畫面時直接 display:none —— display 不會被子層覆蓋。
+     （不要改用 z-index 擋，那會讓 .map-area 產生堆疊脈絡，
+       把裡面的 .detail-panel 一起關進去而蓋不到清單上方。） */
+  #app[data-mview="list"] .maplibregl-control-container,
+  #app[data-mview="sel"] .maplibregl-control-container {
+    display: none;
   }
   #app[data-mview="list"] .selection-box,
   #app[data-mview="sel"] .tabs,

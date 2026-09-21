@@ -524,6 +524,23 @@ mobileQuery.addEventListener('change', () => {
   requestAnimationFrame(() => map.resize());
 });
 
+// ---------- 離線支援 ----------
+// 註冊 Service Worker，讓網站在沒有網路時仍然打得開
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(err => {
+      console.warn('Service Worker 註冊失敗，離線功能無法使用：', err);
+    });
+  });
+}
+
+function updateOnlineStatus() {
+  document.getElementById('offlineBar').hidden = navigator.onLine !== false;
+}
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
+
 // ---------- 線上導遊 ----------
 const chatState = { history: [], busy: false, asked: false };
 

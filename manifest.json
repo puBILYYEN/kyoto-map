@@ -1,0 +1,17 @@
+{
+  "name": "京都行程景點地圖",
+  "short_name": "京都地圖",
+  "description": "京都自由行的景點地圖、日語求助小抄與行前準備，沒有網路也能開",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#faf7f2",
+  "theme_color": "#b5482b",
+  "lang": "zh-Hant",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
