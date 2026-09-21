@@ -60,6 +60,14 @@ if (map) {
     document.getElementById('map').classList.remove('map-no-basemap');
   });
 
+  // 放大到一定程度才顯示名稱，否則 114 個名字會糊成一團
+  const LABEL_ZOOM = 13;
+  const mapBox = document.getElementById('map');
+  const syncLabels = () => mapBox.classList.toggle('show-labels', map.getZoom() >= LABEL_ZOOM);
+  map.on('zoom', syncLabels);
+  map.on('zoomend', syncLabels);
+  syncLabels();
+
   // 底圖載不到不是世界末日：標記還在，位置關係還看得出來
   map.on('error', (e) => {
     console.warn('[地圖] 底圖載入問題：', e && e.error ? e.error.message : e);
@@ -143,12 +151,25 @@ function renderMarkers() {
     el.style.boxShadow = '0 0 3px rgba(0,0,0,0.4)';
     el.style.background = CATEGORY_META[spot.categories[0]].color;
     el.style.cursor = 'pointer';
+    el.style.position = 'relative';   // 名稱標籤要相對這個圓點定位
     // 被勾選時要在圓點中央顯示順序數字，所以用 flex 置中
     el.style.alignItems = 'center';
     el.style.justifyContent = 'center';
     el.style.color = '#fff';
     el.style.fontWeight = '700';
     el.style.lineHeight = '1';
+
+    // 名稱標籤：放大到一定程度才顯示，勾選的景點則一律顯示
+    const label = document.createElement('span');
+    label.className = 'marker-label';
+    label.textContent = spot.name;
+    if (spot.hours) {
+      const hrs = document.createElement('span');
+      hrs.className = 'marker-hours';
+      hrs.textContent = spot.hours.split('（')[0];   // 標籤只放主要時段，細節在介紹裡
+      label.appendChild(hrs);
+    }
+    el.appendChild(label);
 
     el.addEventListener('click', () => {
       showDetail(spot.id);
@@ -179,8 +200,13 @@ function updateMarkerVisibility() {
     el.style.width = size + 'px';
     el.style.height = size + 'px';
 
-    el.textContent = order >= 0 ? String(order + 1) : '';
+    // 只改文字節點，不要用 textContent 否則會把名稱標籤一起刪掉
+    el.childNodes.forEach(node => {
+      if (node.nodeType === Node.TEXT_NODE) node.remove();
+    });
+    if (order >= 0) el.insertBefore(document.createTextNode(String(order + 1)), el.firstChild);
     el.style.fontSize = order >= 9 ? '9px' : '11px';
+    el.classList.toggle('marker-selected', order >= 0);
   });
 }
 
@@ -279,6 +305,7 @@ function showDetail(spotId) {
       <h2>${spot.name}</h2>
     </div>
     <div class="detail-area">${spot.area}</div>
+    ${buildHours(spot)}
     <div class="detail-desc">${spot.desc}</div>
     ${buildBookingBox(spot)}
     <a class="detail-link" href="${buildPlaceUrl(spot)}" target="_blank" rel="noopener noreferrer">📍 在 Google 地圖上看（照片・評價・營業時間）</a>
@@ -390,6 +417,16 @@ function moveSelected(index, delta) {
   selectedIds.splice(target, 0, id);
   renderSelection();
   updateMarkerVisibility();
+}
+
+// 營業／開放時間。沒有資料時要明講，不要讓人誤以為「沒寫＝隨時可以去」
+function buildHours(spot) {
+  if (spot.hours) {
+    return `<div class="detail-hours">🕘 ${spot.hours}
+      <span class="hours-note">參考時間，出發前請以官網或下方 Google 地圖確認</span></div>`;
+  }
+  return `<div class="detail-hours detail-hours-none">🕘 營業時間未收錄
+    <span class="hours-note">請點下方「在 Google 地圖上看」查看即時營業時間</span></div>`;
 }
 
 // 需要預約或事前申請的提醒方塊

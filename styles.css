@@ -261,6 +261,44 @@ html, body {
   min-width: 0;
 }
 #map { flex: 1; min-height: 0; position: relative; }
+/* 地圖標記的名稱標籤 */
+.marker-label {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 253, 248, 0.92);
+  border: 1px solid rgba(43, 38, 32, 0.18);
+  color: #2b2620;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  pointer-events: none;   /* 不要擋到點擊圓點 */
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+.marker-hours {
+  display: block;
+  font-weight: 400;
+  font-size: 10.5px;
+  color: #6f6656;
+}
+.marker-selected .marker-hours { color: #d9cfbe; }
+/* 放大到一定程度才全部顯示 */
+#map.show-labels .marker-label { display: block; }
+/* 勾選的景點不管縮放到哪都要看得到名字 */
+.marker-selected .marker-label {
+  display: block;
+  background: #2b2620;
+  border-color: #2b2620;
+  color: #fdf6e9;
+  text-shadow: none;
+}
+
 /* 底圖載不到時，仍然看得到景點標記的相對位置 */
 #map.map-no-basemap { background: #eae6dc; }
 #map.map-no-basemap::before {
@@ -313,6 +351,21 @@ html, body {
 }
 .detail-header h2 { margin: 0; font-size: 18px; }
 .detail-area { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+.detail-hours {
+  margin-bottom: 10px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: #f3efe6;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+.detail-hours-none { color: var(--text-muted); }
+.hours-note {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
 .detail-desc { font-size: 14.5px; line-height: 1.7; }
 .booking-box {
   display: flex;
