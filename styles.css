@@ -565,6 +565,15 @@ html, body {
 }
 .share-btn:hover { background: #f1e6d8; }
 .share-btn-primary { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+/* 連結要讓人看得清楚、能手動複製，長網址也不能撐破版面 */
+.share-link-text {
+  word-break: break-all;
+  font-size: 12px;
+  background: #f3efe6;
+  padding: 8px 10px;
+  border-radius: 6px;
+  user-select: all;
+}
 
 .share-overlay {
   position: fixed;

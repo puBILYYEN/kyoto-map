@@ -758,6 +758,70 @@ mobileQuery.addEventListener('change', () => {
   if (map) requestAnimationFrame(() => map.resize());
 });
 
+// ---------- 用連結分享清單 ----------
+// 把勾選的景點直接編進網址（#list=t30,v01,j09），用 LINE 傳給家人，
+// 對方一點開就載入同一份清單。不需要帳號、不需要後端、不花錢，
+// 而且連結本身就是資料，在日本網路不穩時也不會因為連不到服務而失效。
+
+const MAX_SHARED_SPOTS = 60;   // 跟 Firebase 那條路徑一致，避免網址過長
+
+function buildListUrl() {
+  const base = location.origin + location.pathname;
+  return base + '#list=' + selectedIds.slice(0, MAX_SHARED_SPOTS).join(',');
+}
+
+// 只接受確實存在的景點 id，順序照網址上的順序（順序會影響路線）
+function parseListFromHash(hash) {
+  const m = /[#&]list=([^&]*)/.exec(hash || '');
+  if (!m) return null;
+  const ids = decodeURIComponent(m[1]).split(',')
+    .map(s => s.trim())
+    .filter(id => SPOTS.some(s => s.id === id));
+  return ids.slice(0, MAX_SHARED_SPOTS);
+}
+
+// 開啟網頁時如果網址帶著清單，就直接套用
+function applyListFromUrl() {
+  const ids = parseListFromHash(location.hash);
+  if (!ids || !ids.length) return;
+  selectedIds = ids;
+  renderList();
+  renderSelection();
+  updateMarkerVisibility();
+  fitToVisibleSpots();
+  shareMessage('<p class="share-note share-note-ok">已載入分享的清單，共 ' + ids.length +
+    ' 個景點。你可以直接用，也可以改完之後再按「🔗 用連結分享」傳回去。</p>');
+}
+
+async function shareByLink() {
+  if (!selectedIds.length) {
+    shareMessage('<p class="share-note">還沒有勾選任何景點。先在清單上勾幾個，再回來分享。</p>');
+    return;
+  }
+  const url = buildListUrl();
+  const text = '京都行程清單（' + selectedIds.length + ' 個景點）';
+
+  // 手機上叫出系統分享選單，可以直接選 LINE
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: '京都行程景點地圖', text, url });
+      return;
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;   // 使用者自己取消，不算失敗
+    }
+  }
+  // 沒有系統分享就複製到剪貼簿
+  try {
+    await navigator.clipboard.writeText(url);
+    shareMessage('<p class="share-note share-note-ok">連結已複製，貼到 LINE 傳給家人就可以了。</p>' +
+      '<p class="share-note share-link-text">' + url + '</p>');
+  } catch (err) {
+    // 連剪貼簿都不能用時，至少讓人看得到、可以手動複製
+    shareMessage('<p class="share-note">請手動複製這個連結傳給家人：</p>' +
+      '<p class="share-note share-link-text">' + url + '</p>');
+  }
+}
+
 // ---------- 共享清單（Firebase Firestore）----------
 // 用途：妹妹在她手機上勾好景點存成一份清單，姊姊打開就能載入同一份。
 // Firebase SDK 用動態 import 從 CDN 載入，只有真的要用時才下載，
@@ -932,6 +996,7 @@ function loadSharedList(spotIds, name) {
   }
 }
 
+shareEl('shareLinkBtn').addEventListener('click', shareByLink);
 shareEl('shareSaveBtn').addEventListener('click', saveSharedList);
 shareEl('shareOpenBtn').addEventListener('click', () => {
   if (!history.state || !history.state.share) history.pushState({ share: true }, '');
@@ -1419,3 +1484,4 @@ renderTabs();
 renderList();
 renderSelection();
 setMobileView('list');
+applyListFromUrl();   // 網址帶著 #list=… 時，直接載入別人分享的清單
