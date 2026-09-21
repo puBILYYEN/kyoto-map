@@ -498,7 +498,14 @@ function closeDetailSheet(fromBackButton) {
   if (!fromBackButton && history.state && history.state.detailSheet) history.back();
 }
 
-window.addEventListener('popstate', () => closeDetailSheet(true));
+window.addEventListener('popstate', () => {
+  // 聊天視窗開著就先關它，其次才是景點介紹面板
+  if (!document.getElementById('chatOverlay').hidden) {
+    closeChat(true);
+    return;
+  }
+  closeDetailSheet(true);
+});
 
 document.querySelectorAll('.mobile-nav button').forEach(btn => {
   btn.addEventListener('click', () => setMobileView(btn.dataset.mview));
@@ -516,6 +523,131 @@ mobileQuery.addEventListener('change', () => {
   setMobileView('list');
   requestAnimationFrame(() => map.resize());
 });
+
+// ---------- 線上導遊 ----------
+const chatState = { history: [], busy: false, asked: false };
+
+function chatEl(id) { return document.getElementById(id); }
+
+// 把目前畫面狀態告訴導遊，它才知道「我選的這幾個」是指哪幾個
+function buildGuideContext() {
+  const parts = [];
+  const selected = selectedIds.map(id => SPOTS.find(s => s.id === id)).filter(Boolean);
+  if (selected.length) {
+    parts.push('使用者目前依序選了這些景點：' +
+      selected.map((s, i) => `${i + 1}.${s.name}（${s.area}）`).join('、'));
+  }
+  const active = SPOTS.find(s => s.id === activeSpotId);
+  if (active) parts.push(`目前正在看的景點是：${active.name}（${active.area}）`);
+  if (activeCategory !== 'all' && CATEGORY_META[activeCategory]) {
+    parts.push(`目前篩選的分類是：${CATEGORY_META[activeCategory].label}`);
+  }
+  return parts.join('\n');
+}
+
+function addChatMessage(role, text, extraClass) {
+  const wrap = document.createElement('div');
+  wrap.className = 'chat-msg chat-msg-' + role + (extraClass ? ' ' + extraClass : '');
+  // 一律用 textContent，不讓模型回傳的內容當成 HTML 執行
+  wrap.textContent = text;
+  chatEl('chatMsgs').appendChild(wrap);
+  chatEl('chatMsgs').scrollTop = chatEl('chatMsgs').scrollHeight;
+  return wrap;
+}
+
+function renderChatSuggestions() {
+  const box = chatEl('chatSuggest');
+  box.innerHTML = '';
+  if (chatState.asked) return;   // 問過第一題之後就不再佔空間
+  AI_CONFIG.suggestions.forEach(q => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chat-chip';
+    btn.textContent = q;
+    btn.addEventListener('click', () => sendToGuide(q));
+    box.appendChild(btn);
+  });
+}
+
+function openChat() {
+  const overlay = chatEl('chatOverlay');
+  if (!overlay.hidden) return;
+  overlay.hidden = false;
+  if (!chatEl('chatMsgs').children.length) {
+    addChatMessage('bot', AI_CONFIG.greeting);
+    if (!AI_CONFIG.endpoint) {
+      addChatMessage('bot', '（目前還沒有設定導遊的後端網址，所以我還不能回答。設定好之後這裡就會正常運作。）', 'chat-msg-warn');
+    }
+    renderChatSuggestions();
+  }
+  history.pushState({ chat: true }, '');
+  chatEl('chatText').focus();
+}
+
+function closeChat(fromBackButton) {
+  const overlay = chatEl('chatOverlay');
+  if (overlay.hidden) return;
+  overlay.hidden = true;
+  if (!fromBackButton && history.state && history.state.chat) history.back();
+}
+
+async function sendToGuide(text) {
+  const question = (text || '').trim();
+  if (!question || chatState.busy) return;
+
+  addChatMessage('user', question);
+  chatEl('chatText').value = '';
+  chatState.asked = true;
+  renderChatSuggestions();
+
+  if (!AI_CONFIG.endpoint) {
+    addChatMessage('bot', '導遊的後端還沒設定好，暫時無法回答。' + AI_CONFIG.offlineNote, 'chat-msg-warn');
+    return;
+  }
+
+  chatState.busy = true;
+  chatEl('chatSend').disabled = true;
+  const thinking = addChatMessage('bot', '導遊思考中…', 'chat-msg-thinking');
+
+  try {
+    const res = await fetch(AI_CONFIG.endpoint + '/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question,
+        context: buildGuideContext(),
+        history: chatState.history.slice(-6),   // 只帶最近幾輪，省流量
+      }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const answer = (data && data.answer) ? data.answer : '導遊沒有回覆內容，請再問一次。';
+    thinking.remove();
+    addChatMessage('bot', answer);
+    chatState.history.push({ q: question, a: answer });
+  } catch (err) {
+    thinking.remove();
+    addChatMessage('bot',
+      '連不上導遊（' + err.message + '）。如果是剛打開網頁，後端可能還在喚醒中，等十幾秒再試一次。' +
+      AI_CONFIG.offlineNote, 'chat-msg-warn');
+  } finally {
+    chatState.busy = false;
+    chatEl('chatSend').disabled = false;
+  }
+}
+
+chatEl('chatBtn').addEventListener('click', openChat);
+chatEl('chatClose').addEventListener('click', () => closeChat());
+chatEl('chatForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  sendToGuide(chatEl('chatText').value);
+});
+
+// Render 免費方案閒置會休眠，冷啟動要幾十秒。
+// 一進網頁就先敲一下健康檢查把它叫醒，等使用者真的要問時通常已經醒了。
+if (AI_CONFIG.endpoint) {
+  fetch(AI_CONFIG.endpoint + '/healthz', { mode: 'cors' }).catch(() => {});
+}
 
 // ---------- 搜尋與篩選 ----------
 document.getElementById('searchInput').addEventListener('input', (e) => {

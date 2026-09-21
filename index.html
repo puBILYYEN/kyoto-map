@@ -13,6 +13,7 @@
       <div class="topbar-row">
         <h1>京都行程景點地圖</h1>
         <div class="topbar-actions">
+          <button type="button" class="prep-btn prep-btn-primary" id="chatBtn">🧭 線上導遊</button>
           <button type="button" class="prep-btn" id="phraseBtn">💬 日語小抄</button>
           <button type="button" class="prep-btn" id="prepBtn">🛂 行前準備</button>
         </div>
@@ -52,6 +53,21 @@
           </div>
         </div>
       </main>
+    </div>
+
+    <div class="chat-overlay" id="chatOverlay" hidden>
+      <div class="chat-box">
+        <header class="chat-head">
+          <span class="chat-title">🧭 京都線上導遊</span>
+          <button type="button" id="chatClose" aria-label="關閉">✕</button>
+        </header>
+        <div class="chat-msgs" id="chatMsgs"></div>
+        <div class="chat-suggest" id="chatSuggest"></div>
+        <form class="chat-input" id="chatForm">
+          <input type="text" id="chatText" placeholder="問我任何關於京都的事…" autocomplete="off">
+          <button type="submit" id="chatSend">送出</button>
+        </form>
+      </div>
     </div>
 
     <nav class="mobile-nav" id="mobileNav">
