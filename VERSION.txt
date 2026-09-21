@@ -1,7 +1,15 @@
-版本：v9
+版本：v10
 更新時間：2026-09-21
 
-本版新增內容（線上導遊）：
+本版新增內容（導遊後端程式碼）：
+- 新增 ai-backend/ 資料夾，內含線上導遊的後端（零相依套件，只用 Node 內建模組）
+- 新增根目錄 .vercelignore，把 ai-backend/ 排除在 Vercel 之外
+  → 根目錄仍然沒有 package.json，Vercel 的靜態部署完全不受影響
+- 新增根目錄 render.yaml（Blueprint），rootDir 指向 ai-backend
+- 不需要另開 repo：Render 支援指定子目錄部署
+- 部署步驟見 ai-backend/README.md
+
+v9（線上導遊）：
 - 右上角新增「🧭 線上導遊」，開啟聊天視窗，可詢問景點特色、排行程、現場突發問題
 - 導遊看得到你目前勾選的景點與順序，回答會直接對應那些地方
 - 附 6 個建議問題快捷鍵；Android 返回鍵會先關閉聊天視窗

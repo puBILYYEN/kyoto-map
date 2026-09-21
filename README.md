@@ -122,9 +122,13 @@ Android 的返回鍵會先關閉這個面板，不會一按就離開網頁。
 任何人按 F12 就看得到）。後端是獨立的專案，部署在 Render，本專案完全不受影響：
 
 ```
-kyoto-map   → 純靜態，Vercel 自動部署（沒有 package.json，不能加）
-kyoto-ai    → 後端代理，Render（獨立的 repo）
+kyoto-map/            → 純靜態，Vercel 自動部署（根目錄沒有 package.json，不能加）
+kyoto-map/ai-backend/ → 後端代理，Render（用 Root Directory 指定這個子目錄）
 ```
+
+後端放在同一個 repo 的子目錄，用根目錄的 `.vercelignore` 排除，
+所以 **Vercel 那邊完全看不到它**，現有的靜態部署不受影響。
+部署步驟見 [`ai-backend/README.md`](ai-backend/README.md)。
 
 後端部署好之後，把網址填進 `data.js` 的 `AI_CONFIG.endpoint` 即可，例如：
 

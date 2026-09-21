@@ -1,0 +1,23 @@
+# Render Blueprint：可以直接用 New → Blueprint 讀這個檔案自動建立服務
+# 注意 rootDir，後端在 ai-backend 子目錄，與 Vercel 的靜態網站互不影響
+services:
+  - type: web
+    name: kyoto-ai
+    runtime: node
+    plan: free
+    rootDir: ai-backend
+    buildCommand: ""
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    autoDeploy: false
+    envVars:
+      - key: AI_BASE_URL
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_MODEL
+        value: auto/best-free
+      - key: ALLOWED_ORIGINS
+        value: https://kyoto-trip-map.vercel.app
+      - key: RATE_LIMIT
+        value: "20"

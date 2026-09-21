@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: kyoto-ai
+    runtime: node
+    plan: free
+    buildCommand: ""
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: AI_BASE_URL
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_MODEL
+        value: auto/best-free
+      - key: ALLOWED_ORIGINS
+        value: https://kyoto-trip-map.vercel.app

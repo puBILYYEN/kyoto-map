@@ -1,0 +1,9 @@
+{
+  "name": "kyoto-ai-guide",
+  "version": "1.0.0",
+  "private": true,
+  "description": "京都行程地圖的線上導遊後端（零相依套件）",
+  "main": "server.js",
+  "engines": { "node": ">=18" },
+  "scripts": { "start": "node server.js" }
+}
