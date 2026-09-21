@@ -1,4 +1,5 @@
 :root {
+  --stay: #3d4450;
   --temple: #b5482b;
   --shopping: #3f7cac;
   --scenic: #3c8a5b;
@@ -77,6 +78,7 @@ html, body {
   border-color: transparent;
 }
 .tab-btn[data-cat="all"].active { background: #444; }
+.tab-btn[data-cat="stay"].active { background: var(--stay); }
 .tab-btn[data-cat="temple"].active { background: var(--temple); }
 .tab-btn[data-cat="shopping"].active { background: var(--shopping); }
 .tab-btn[data-cat="scenic"].active { background: var(--scenic); }

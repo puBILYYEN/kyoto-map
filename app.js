@@ -91,6 +91,7 @@ function updateMarkerVisibility() {
 // ---------- Tabs ----------
 const TABS = [
   { cat: 'all', label: '全部' },
+  { cat: 'stay', label: CATEGORY_META.stay.label },
   { cat: 'temple', label: CATEGORY_META.temple.label },
   { cat: 'shopping', label: CATEGORY_META.shopping.label },
   { cat: 'scenic', label: CATEGORY_META.scenic.label },

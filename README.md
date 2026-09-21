@@ -1,7 +1,8 @@
 # 京都行程景點地圖
 
 一個純靜態網頁（沒有後端、不用資料庫），用 MapLibre GL JS 顯示京都景點地圖，
-依「寺與神社 / 穿搭與藥妝 / 美景 / 精進料理」四大分類瀏覽，
+依「住宿與交通 / 寺與神社 / 穿搭與藥妝 / 美景 / 精進料理 / 動漫迷陰陽師之旅 /
+軍事迷織田信長之旅 / 宇治抹茶體驗之旅」八大分類瀏覽，
 點景點看詳細介紹，勾選多個景點後可以一鍵開啟 Google 地圖的大眾運輸路線。
 
 ## 檔案結構
@@ -58,12 +59,16 @@ vercel --prod
 打開 `data.js`，裡面是一個叫做 `SPOTS` 的陣列，每個景點長這樣：
 
 ```js
-{ id:'t62', category:'temple', name:'新景點名稱', area:'所在區域',
+{ id:'t62', categories:['temple'], name:'新景點名稱', area:'所在區域',
   lat:35.0000, lng:135.7500, desc:'這裡寫景點特色介紹文字。' }
 ```
 
-- `id`：不能跟其他景點重複，temple 開頭用 t、shopping 用 s、scenic 用 v、shojin 用 j，數字接續下去即可
-- `category`：只能是 `temple`（寺與神社）、`shopping`（穿搭與藥妝）、`scenic`（美景）、`shojin`（精進料理）四選一
+- `id`：不能跟其他景點重複，各分類的開頭字母為 temple 用 t、shopping 用 s、scenic 用 v、
+  shojin 用 j、onmyoji 用 o、nobunaga 用 n、ujimatcha 用 u、stay 用 b，數字接續下去即可
+- `categories`：**陣列**，可同時屬於多個分類，例如 `['temple','onmyoji']`。
+  可用的分類有 `stay`（住宿與交通）、`temple`（寺與神社）、`shopping`（穿搭與藥妝）、
+  `scenic`（美景）、`shojin`（精進料理）、`onmyoji`（動漫迷陰陽師之旅）、
+  `nobunaga`（軍事迷織田信長之旅）、`ujimatcha`（宇治抹茶體驗之旅）
 - `lat` / `lng`：緯度／經度，可以到 Google 地圖上對著該地點按右鍵複製座標
 - `desc`：介紹文字，會顯示在下方詳細介紹欄
 

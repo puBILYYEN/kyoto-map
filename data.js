@@ -2,9 +2,11 @@
 // categories: 每個景點可以屬於一個或多個分類（陣列）
 //   'temple' 寺與神社 | 'shopping' 穿搭與藥妝 | 'scenic' 美景 | 'shojin' 精進料理
 //   'onmyoji' 動漫迷陰陽師之旅 | 'nobunaga' 軍事迷織田信長之旅 | 'ujimatcha' 宇治抹茶體驗之旅
+//   'stay' 住宿與交通（本次行程的住宿與進出京都的門戶，id 以 b 開頭）
 // 座標為概略值，僅供地圖標示與大眾運輸路線查詢使用，實際造訪前請以Google地圖再次確認地址
 
 const CATEGORY_META = {
+  stay:      { label: '住宿與交通',         color: '#3d4450' },
   temple:    { label: '寺與神社',           color: '#b5482b' },
   shopping:  { label: '穿搭與藥妝',         color: '#3f7cac' },
   scenic:    { label: '美景',               color: '#3c8a5b' },
@@ -15,6 +17,11 @@ const CATEGORY_META = {
 };
 
 const SPOTS = [
+  // ------- 住宿與交通（2026/9/29-10/3 行程）-------
+  { id:'b01', categories:['stay'], name:'RESI STAY HEART（住宿）', area:'京都車站・下京區飴屋町', lat:34.9897, lng:135.7607, desc:'本次行程下榻的公寓式飯店，距京都車站步行約7分鐘，往嵐山、宇治、伏見都可從車站直接出發。（座標為概略值，請以訂房確認信地址為準）' },
+  { id:'b02', categories:['stay'], name:'關西國際機場（KIX）', area:'大阪府泉佐野', lat:34.4347, lng:135.2441, desc:'去程9/29 MM024與回程10/3 MM027的進出機場，樂桃航空在第2航廈，與第1航廈之間需搭免費接駁車。往返京都可搭JR HARUKA特急，單程約75~90分鐘。' },
+  { id:'b03', categories:['stay'], name:'京都車站', area:'京都車站', lat:34.9858, lng:135.7588, desc:'京都對外交通的總樞紐，JR、近鐵、地下鐵與各路線巴士匯集，也是本次住宿的最近車站。' },
+
   // ------- 寺與神社 -------
   { id:'t01', categories:['temple'], name:'清水寺', area:'東山', lat:34.9948, lng:135.7850, desc:'木造舞台懸空於山坡之上，世界文化遺產，可俯瞰京都市街與東山群峰。' },
   { id:'t02', categories:['temple'], name:'地主神社', area:'東山', lat:34.9950, lng:135.7854, desc:'位於清水寺境內，以「戀占い之石」求姻緣聞名，年輕遊客必訪。' },
