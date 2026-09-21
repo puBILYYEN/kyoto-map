@@ -212,20 +212,21 @@ function renderMarkers() {
     const label = document.createElement('span');
     label.className = 'marker-label marker-label-' + (spot.labelSide || 'below');
     label.textContent = spot.name;
-    if (spot.hours) {
-      const unrestricted = hoursAreUnrestricted(spot.hours);
+    // 純粹「24 小時開放」沒有限制可以提醒，地圖標籤上不用顯示時段
+    const noRealRestriction = spot.hours && hasNoRealTimeRestriction(spot.hours);
+    if (spot.hours && !noRealRestriction) {
       const hrs = document.createElement('span');
-      hrs.className = 'marker-hours' + (spot.booking && !unrestricted ? ' marker-hours-booking' : '');
+      hrs.className = 'marker-hours' + (spot.booking ? ' marker-hours-booking' : '');
       hrs.textContent = spot.hours.split('（')[0];   // 標籤只放主要時段，細節在介紹裡
       label.appendChild(hrs);
-      // 時段是 24 小時開放，時段文字不塗黃；但要事前預約的話，
-      // 這件事本身還是要讓人一眼看到，所以另外加一行黃字提醒
-      if (spot.booking && unrestricted) {
-        const note = document.createElement('span');
-        note.className = 'marker-hours marker-booking-note';
-        note.textContent = '⚠ 需事前預約';
-        label.appendChild(note);
-      }
+    }
+    // 時段沒有限制（沒顯示，或根本沒收錄時段）但仍要事前預約時，
+    // 這件事本身還是要讓人一眼看到，另外加一行黃字提醒
+    if (spot.booking && noRealRestriction) {
+      const note = document.createElement('span');
+      note.className = 'marker-hours marker-booking-note';
+      note.textContent = '⚠ 需事前預約';
+      label.appendChild(note);
     }
     el.appendChild(label);
 
@@ -480,19 +481,24 @@ function moveSelected(index, delta) {
   updateMarkerVisibility();
 }
 
-// 時段本身寫著「24 小時開放」之類的字樣，代表營業時間沒有限制——
-// 這種情況下就算要事前預約，真正該提醒的是「要預約」，不是時段本身，
-// 時段文字就不該被塗成黃色（塗了反而讓人誤以為時段有限制）。
-function hoursAreUnrestricted(hours) {
-  return /24\s*小時|24\s*小时/.test(hours || '');
+// 標示營業時間的目的是讓人知道「這裡有時間限制」。如果整段時間
+// 只是說「24 小時開放」，完全沒有其他限制，那就沒有限制可以提醒，
+// 不需要特別顯示這個區塊。但如果括號裡還有其他限制時段（例如某個
+// 附屬設施另外有開放時間），那個限制本身還是有意義，要繼續顯示。
+function hasNoRealTimeRestriction(hours) {
+  if (!hours) return false;
+  const isAllDay = /24\s*小時|24\s*小时/.test(hours);
+  if (!isAllDay) return false;
+  return !/\d{1,2}[:：]\d{2}/.test(hours);   // 沒有具體的限制時段
 }
 
 // 營業／開放時間。沒有資料時要明講，不要讓人誤以為「沒寫＝隨時可以去」
 function buildHours(spot) {
-  // 需要預約／申請的景點，連營業時間也一起用黃色提醒，兩個警示互相呼應——
-  // 但如果時段本身是 24 小時開放，時段不是限制所在，就不塗黃，
-  // 底下緊接著的 booking 方塊（黃色標籤＋說明）已經足夠提醒要預約。
-  const needsBooking = spot.booking && !hoursAreUnrestricted(spot.hours) ? ' detail-hours-booking' : '';
+  // 純粹「24 小時開放」沒有任何限制，不需要標示營業時間
+  if (spot.hours && hasNoRealTimeRestriction(spot.hours)) return '';
+  // 需要預約／申請的景點，如果同時有真正的限制時段，時段也一起用
+  // 黃色提醒，兩個警示互相呼應
+  const needsBooking = spot.booking ? ' detail-hours-booking' : '';
   if (spot.hours) {
     return `<div class="detail-hours${needsBooking}">🕘 ${spot.hours}
       <span class="hours-note">參考時間，出發前請以官網或下方 Google 地圖確認</span></div>`;
