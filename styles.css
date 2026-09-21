@@ -287,7 +287,6 @@ html, body {
   line-height: 1.3;
   white-space: nowrap;
   pointer-events: none;   /* 不要擋到點擊圓點 */
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 .marker-hours {
   display: block;
@@ -307,7 +306,6 @@ html, body {
   background: #2b2620;
   border-color: #2b2620;
   color: #fdf6e9;
-  text-shadow: none;
 }
 
 /* 底圖載不到時，仍然看得到景點標記的相對位置 */
