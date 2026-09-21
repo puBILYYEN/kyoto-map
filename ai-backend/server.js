@@ -22,6 +22,23 @@ const AI_MODEL = process.env.AI_MODEL || 'auto/best-free';
 const AI_CHAT_URL = process.env.AI_CHAT_URL ||
   (AI_BASE_URL ? `${AI_BASE_URL}/v1/chat/completions` : '');
 
+// 只檢查「有沒有填東西」是不夠的 —— 填 placeholder 也會通過，
+// 結果 /healthz 回報 configured:true 但實際上根本不能用。
+// 這裡確認端點真的是一個 http(s) 網址、金鑰也不是明顯的佔位字串。
+function looksConfigured() {
+  let validUrl = false;
+  try {
+    const u = new URL(AI_CHAT_URL);
+    validUrl = u.protocol === 'https:' || u.protocol === 'http:';
+  } catch { /* 不是合法網址 */ }
+
+  const key = AI_API_KEY.trim();
+  const placeholder = /^(placeholder|changeme|todo|test|xxx+|your[-_ ]?key|)$/i.test(key);
+  return validUrl && !placeholder && key.length >= 8;
+}
+
+const AI_READY = looksConfigured();
+
 // 只允許自己的網站呼叫。沒設定的話預設只放行正式網址。
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ||
   'https://kyoto-trip-map.vercel.app')
@@ -168,8 +185,9 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === '/healthz') {
     return send(res, 200, {
       ok: true,
-      configured: Boolean(AI_CHAT_URL && AI_API_KEY),
+      configured: AI_READY,
       model: AI_MODEL,
+      endpoint: AI_CHAT_URL || null,   // 只回報網址，金鑰絕不外流
     }, allowed || '*');
   }
 
@@ -187,8 +205,10 @@ const server = http.createServer(async (req, res) => {
     return send(res, 429, { error: '問太快了，請稍等一下再問' }, allowed);
   }
 
-  if (!AI_CHAT_URL || !AI_API_KEY) {
-    return send(res, 500, { error: '伺服器尚未設定 AI_BASE_URL / AI_API_KEY' }, allowed);
+  if (!AI_READY) {
+    return send(res, 500, {
+      error: '伺服器的 AI 端點或金鑰尚未正確設定（目前看起來還是佔位值）',
+    }, allowed);
   }
 
   try {
@@ -215,6 +235,6 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   console.log(`京都導遊後端已啟動，port ${PORT}`);
   console.log(`允許的來源：${ALLOWED_ORIGINS.join(', ')}`);
-  console.log(`AI 設定完成：${Boolean(AI_CHAT_URL && AI_API_KEY)}`);
+  console.log(`AI 設定完成：${AI_READY}`);
   console.log(`AI 端點：${AI_CHAT_URL || '(未設定)'}　模型：${AI_MODEL}`);
 });

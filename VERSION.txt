@@ -1,7 +1,14 @@
-版本：v19
+版本：v20
 更新時間：2026-09-21
 
-本版修正（後端支援不同供應商的端點路徑）：
+本版修正（/healthz 的 configured 判斷失真）：
+- 原本只檢查環境變數「有沒有填東西」，填 placeholder 也會回報 configured:true
+  → 實際上根本不能用，卻顯示設定完成，等於沒有檢查
+- 改為確認端點是合法的 http(s) 網址、且金鑰不是明顯的佔位字串
+- /healthz 一併回報目前使用的端點網址（只回報網址，金鑰絕不外流）
+- 尚未正確設定時，/ask 會明確說「目前看起來還是佔位值」
+
+v19（後端支援不同供應商的端點路徑）：
 - 原本寫死 AI_BASE_URL + "/v1/chat/completions"，Gemini 的路徑是
   /v1beta/openai/chat/completions，會組出錯誤網址
 - 新增選填的 AI_CHAT_URL，可直接指定完整端點網址
