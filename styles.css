@@ -13,7 +13,7 @@
   --text: #2b2620;
   --text-muted: #6f6656;
   --accent: #b5482b;
-  --highlight-yellow: #ffd400;   /* 預約標籤與營業時間文字統一用這個黃色 */
+  --highlight-yellow: #ffd400;   /* 只用在「需要預約／申請」的標籤，其他資訊不要共用這個顏色 */
 }
 
 * { box-sizing: border-box; }
@@ -304,6 +304,10 @@ html, body {
   border: 2px solid #fff;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
+/* 黃色是「需要預約／申請」的專屬警示色，只用在 .booking-tag 上，
+   不能跟其他資訊共用，不然像營業時間這種純參考資訊也變成一樣的
+   顏色，會讓人誤以為那也是要預約的意思。 */
+
 /* 地圖標記的名稱標籤。
    圓點沒有方向性，標籤不一定要貼在正下方——貼左邊、右邊都可以。
    幾個現實中緊挨著的景點（同一座寺院內的餐廳、水池等）會指定
@@ -330,10 +334,9 @@ html, body {
   margin-top: 1px;
   padding: 0 3px;
   border-radius: 3px;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 10.5px;
-  background: #2b2620;
-  color: var(--highlight-yellow);
+  color: #6f6656;
 }
 /* 放大到一定程度才全部顯示 */
 #map.show-labels .marker-label { display: block; }
@@ -401,9 +404,10 @@ html, body {
 .detail-hours {
   margin-bottom: 10px;
   padding: 7px 10px;
-  border-radius: 6px;
-  background: #2b2620;
-  color: var(--highlight-yellow);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  background: #f3efe6;
+  color: var(--text);
   font-weight: 600;
   font-size: 13.5px;
   line-height: 1.6;
@@ -419,9 +423,8 @@ html, body {
   margin-top: 2px;
   font-size: 12px;
   font-weight: 400;
-  color: #d9cfbe;   /* 深底上用淺米色，跟黃色的主要時段文字做出層次 */
+  color: var(--text-muted);
 }
-.detail-hours-none .hours-note { color: var(--text-muted); }
 .detail-desc { font-size: 14.5px; line-height: 1.7; }
 .booking-box {
   display: flex;
