@@ -731,6 +731,99 @@ const chatState = { history: [], busy: false, asked: false };
 
 function chatEl(id) { return document.getElementById(id); }
 
+// ---------- 景點檢索（給導遊用的 RAG）----------
+// 114 筆資料全部塞進 prompt 太浪費，而且免費模型也吃不下。
+// 做法：依問題挑出最相關的幾筆再送過去。
+//
+// 中文沒有空白可以斷詞，所以用「兩字一組」（bigram）切開比對。
+// 例如「精進料理」→ 精進、進料、料理，任何一組對上就算分。
+// 114 筆資料用這種土法煉鋼就夠了，不需要 embedding 或向量資料庫。
+
+// 這些字幾乎每句話都有，留著只會製造雜訊
+const STOP_CHARS = /[的了嗎呢吧啊我你他她它們是在有會要想請問一個這那些什麼怎麼哪裡可以嘛喔耶？?！!。、，,；;：:（）()「」\s]/g;
+
+// 使用者的講法常常跟資料裡的用詞對不上（例如問「吃素」，資料寫「精進料理」）。
+// 114 筆固定資料用一張手寫的同義詞表就夠了，不需要語意模型。
+const QUERY_SYNONYMS = [
+  [/素食|吃素|蔬食|不吃肉|齋|vegetarian|vegan/i, '精進料理湯豆腐'],
+  [/藥妝|買藥|藥局|化妝品|美妝|保養品/i, '穿搭與藥妝'],
+  [/購物|血拼|伴手禮|紀念品|逛街/i, '穿搭與藥妝商店街市場'],
+  [/賞楓|紅葉|楓葉|楓紅|秋天/i, '紅葉'],
+  [/賞櫻|櫻花|春天/i, '櫻'],
+  [/夜景|夜晚|晚上|點燈/i, '夜景點燈'],
+  [/和服|浴衣|變裝|換裝/i, '和服'],
+  [/抹茶|茶道|綠茶|茶葉/i, '抹茶宇治茶'],
+  [/信長|戰國|武將|軍事|歷史迷/i, '織田信長'],
+  [/陰陽師|晴明|安倍|動漫|漫畫/i, '陰陽師晴明'],
+  [/拍照|網美|打卡|美照|景色|風景/i, '美景'],
+  [/世界遺產|遺產/i, '世界遺產'],
+  [/庭園|枯山水|造景/i, '庭園枯山水'],
+  [/住宿|飯店|旅館|民宿|睡/i, '住宿'],
+  [/機場|飛機|起飛|降落/i, '關西國際機場'],
+  [/車站|電車|地鐵|巴士|公車|交通/i, '京都車站'],
+  [/預約|訂位|申請|報名/i, '預約申請'],
+  [/神社|參拜|求籤|御守/i, '神社'],
+  [/寺廟|寺院|佛寺/i, '寺'],
+];
+
+function expandQuery(question) {
+  let extra = '';
+  QUERY_SYNONYMS.forEach(([pattern, words]) => {
+    if (pattern.test(question)) extra += words;
+  });
+  return question + extra;
+}
+
+function normalizeText(text) {
+  return String(text).toLowerCase().replace(/[·・【】…\-—]/g, '');
+}
+
+function toTerms(text) {
+  const out = new Set();
+  const latin = text.match(/[a-z0-9]{2,}/g) || [];
+  latin.forEach(w => out.add(w));
+  const cjk = text.replace(/[a-z0-9]/g, '');
+  for (let i = 0; i < cjk.length - 1; i++) out.add(cjk.slice(i, i + 2));
+  return [...out];
+}
+
+// 每個景點的檢索文字，只建一次
+const SEARCH_INDEX = SPOTS.map(spot => {
+  const cats = spot.categories.map(c => CATEGORY_META[c].label).join('');
+  const booking = spot.booking
+    ? BOOKING_META[spot.booking.level].label + spot.booking.note
+    : '';
+  return {
+    spot,
+    // 名稱、地區、分類是強訊號；介紹文是弱訊號
+    strong: normalizeText(spot.name + spot.area + cats),
+    weak: normalizeText(spot.desc + booking),
+  };
+});
+
+function findRelevantSpots(question, limit, excludeIds) {
+  const cleaned = normalizeText(expandQuery(question)).replace(STOP_CHARS, '');
+  const terms = toTerms(cleaned);
+  if (!terms.length) return [];
+
+  const skip = new Set(excludeIds || []);
+  const scored = [];
+  SEARCH_INDEX.forEach(entry => {
+    if (skip.has(entry.spot.id)) return;
+    let score = 0;
+    terms.forEach(t => {
+      if (entry.strong.includes(t)) score += 3;
+      else if (entry.weak.includes(t)) score += 1;
+    });
+    if (score > 0) scored.push({ spot: entry.spot, score });
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  // 只留下跟最高分同一個量級的，避免把勉強沾上邊的景點也塞給導遊
+  const threshold = scored.length ? scored[0].score * 0.45 : 0;
+  return scored.filter(r => r.score >= threshold).slice(0, limit).map(r => r.spot);
+}
+
 // 把景點的實際資料整理成一行，讓導遊照我們的資料回答，而不是憑自己的記憶
 function describeSpot(spot) {
   let line = `${spot.name}（${spot.area}）：${spot.desc}`;
@@ -742,7 +835,7 @@ function describeSpot(spot) {
 }
 
 // 把目前畫面狀態告訴導遊，它才知道「我選的這幾個」是指哪幾個
-function buildGuideContext() {
+function buildGuideContext(question) {
   const parts = [];
   const selected = selectedIds.map(id => SPOTS.find(s => s.id === id)).filter(Boolean);
 
@@ -770,6 +863,15 @@ function buildGuideContext() {
   }
 
   if (!parts.length) parts.push('使用者目前還沒有勾選任何景點。');
+
+  // 依問題從 114 個景點裡撈出可能相關的，讓導遊有資料可以回答
+  const related = findRelevantSpots(question, 6, selectedIds.concat(activeSpotId || []));
+  if (related.length) {
+    parts.push('');
+    parts.push('資料庫中可能與問題相關的其他景點（使用者沒有勾選，僅供你參考）：');
+    related.forEach(spot => parts.push('- ' + describeSpot(spot)));
+  }
+
   return parts.join('\n');
 }
 
@@ -844,7 +946,7 @@ async function sendToGuide(text) {
 
   const payload = JSON.stringify({
     question,
-    context: buildGuideContext(),
+    context: buildGuideContext(question),
     history: chatState.history.slice(-6),   // 只帶最近幾輪，省流量
   });
 
