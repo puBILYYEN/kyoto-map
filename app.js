@@ -23,7 +23,7 @@ map.on('load', () => {
 // ---------- 工具 ----------
 function getVisibleSpots() {
   return SPOTS.filter(s => {
-    const catOk = activeCategory === 'all' || s.category === activeCategory;
+    const catOk = activeCategory === 'all' || s.categories.includes(activeCategory);
     const term = searchTerm.trim().toLowerCase();
     const searchOk = !term ||
       s.name.toLowerCase().includes(term) ||
@@ -53,7 +53,7 @@ function renderMarkers() {
     el.style.borderRadius = '50%';
     el.style.border = '2px solid #fff';
     el.style.boxShadow = '0 0 3px rgba(0,0,0,0.4)';
-    el.style.background = CATEGORY_META[spot.category].color;
+    el.style.background = CATEGORY_META[spot.categories[0]].color;
     el.style.cursor = 'pointer';
 
     el.addEventListener('click', () => {
@@ -95,6 +95,9 @@ const TABS = [
   { cat: 'shopping', label: CATEGORY_META.shopping.label },
   { cat: 'scenic', label: CATEGORY_META.scenic.label },
   { cat: 'shojin', label: CATEGORY_META.shojin.label },
+  { cat: 'onmyoji', label: CATEGORY_META.onmyoji.label },
+  { cat: 'nobunaga', label: CATEGORY_META.nobunaga.label },
+  { cat: 'ujimatcha', label: CATEGORY_META.ujimatcha.label },
 ];
 
 function renderTabs() {
@@ -141,7 +144,7 @@ function renderList() {
 
     const dot = document.createElement('span');
     dot.className = 'spot-dot';
-    dot.style.background = CATEGORY_META[spot.category].color;
+    dot.style.background = CATEGORY_META[spot.categories[0]].color;
 
     const info = document.createElement('div');
     info.className = 'spot-info';
@@ -166,10 +169,12 @@ function showDetail(spotId) {
     panel.innerHTML = '<div class="detail-placeholder">點選左側清單或地圖上的標記，查看景點詳細介紹</div>';
     return;
   }
-  const meta = CATEGORY_META[spot.category];
+  const badges = spot.categories
+    .map(c => `<span class="badge" style="background:${CATEGORY_META[c].color}">${CATEGORY_META[c].label}</span>`)
+    .join(' ');
   panel.innerHTML = `
     <div class="detail-header">
-      <span class="badge" style="background:${meta.color}">${meta.label}</span>
+      ${badges}
       <h2>${spot.name}</h2>
     </div>
     <div class="detail-area">${spot.area}</div>

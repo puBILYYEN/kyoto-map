@@ -3,6 +3,9 @@
   --shopping: #3f7cac;
   --scenic: #3c8a5b;
   --shojin: #8a6d3b;
+  --onmyoji: #5b3a8e;
+  --nobunaga: #7a1f1f;
+  --ujimatcha: #6b8f3f;
   --bg: #faf7f2;
   --panel-bg: #ffffff;
   --border: #e4ddd2;
@@ -78,6 +81,9 @@ html, body {
 .tab-btn[data-cat="shopping"].active { background: var(--shopping); }
 .tab-btn[data-cat="scenic"].active { background: var(--scenic); }
 .tab-btn[data-cat="shojin"].active { background: var(--shojin); }
+.tab-btn[data-cat="onmyoji"].active { background: var(--onmyoji); }
+.tab-btn[data-cat="nobunaga"].active { background: var(--nobunaga); }
+.tab-btn[data-cat="ujimatcha"].active { background: var(--ujimatcha); }
 
 .search-box {
   padding: 8px 10px;
