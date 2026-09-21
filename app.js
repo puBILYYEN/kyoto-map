@@ -223,9 +223,12 @@ function renderMarkers() {
     // 時段沒有限制（沒顯示，或根本沒收錄時段）但仍要事前預約時，
     // 這件事本身還是要讓人一眼看到，另外加一行黃字提醒
     if (spot.booking && noRealRestriction) {
+      // 場地本身沒有限制，但要預約的項目自己有時段的話，把時段也
+      // 一併標出來，不然只寫「需事前預約」看不出什麼時候要去
+      const itemTime = extractBookingTimeRange(spot.booking.note);
       const note = document.createElement('span');
       note.className = 'marker-hours marker-booking-note';
-      note.textContent = '⚠ 需事前預約';
+      note.textContent = itemTime ? `⚠ 需事前預約 ${itemTime}` : '⚠ 需事前預約';
       label.appendChild(note);
     }
     el.appendChild(label);
@@ -492,6 +495,15 @@ function hasNoRealTimeRestriction(hours) {
   return !/\d{1,2}[:：]\d{2}/.test(hours);   // 沒有具體的限制時段
 }
 
+// 場地本身雖然 24 小時開放，但要預約的「那個項目」自己可能還有
+// 限制時段（例如某個體驗只在 10:00–15:00 受理）。這種時候真正該
+// 提醒的時間不是場地的營業時間，而是這個項目自己的時段——從預約
+// 說明文字裡抓出時間區間，讓提醒可以連著項目一起顯示。
+function extractBookingTimeRange(note) {
+  const m = (note || '').match(/\d{1,2}[:：]\d{2}\s*[~～\-–—]\s*\d{1,2}[:：]\d{2}/);
+  return m ? m[0] : null;
+}
+
 // 營業／開放時間。沒有資料時要明講，不要讓人誤以為「沒寫＝隨時可以去」
 function buildHours(spot) {
   // 純粹「24 小時開放」沒有任何限制，不需要標示營業時間
@@ -511,8 +523,13 @@ function buildHours(spot) {
 function buildBookingBox(spot) {
   if (!spot.booking) return '';
   const meta = BOOKING_META[spot.booking.level];
+  // 場地整體 24 小時開放、但要預約的項目自己有限制時段時，這裡
+  // 才是真正的時間限制所在，整塊改成深底黃字加強提醒
+  const isTimedItem = spot.hours && hasNoRealTimeRestriction(spot.hours)
+    && extractBookingTimeRange(spot.booking.note);
+  const timedClass = isTimedItem ? ' booking-box-timed' : '';
   return `
-    <div class="booking-box" style="border-left-color:${meta.color}">
+    <div class="booking-box${timedClass}" style="border-left-color:${meta.color}">
       <span class="booking-tag" style="background:${meta.color}">${meta.label}</span>
       <span class="booking-note">${spot.booking.note}</span>
     </div>`;

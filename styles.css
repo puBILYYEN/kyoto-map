@@ -459,6 +459,10 @@ html, body {
 }
 .booking-box .booking-tag { margin-left: 0; }
 .booking-note { flex: 1; min-width: 180px; font-size: 13.5px; line-height: 1.65; }
+/* 場地整體 24 小時開放，但要預約的項目自己有限制時段時，這裡才是
+   真正的時間限制所在，整塊改成深底黃字加強提醒 */
+.booking-box-timed { background: #2b2620; border-left-color: var(--highlight-yellow); }
+.booking-box-timed .booking-note { color: var(--highlight-yellow); }
 
 /* 日語小抄 */
 .phrase-address {
