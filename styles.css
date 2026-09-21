@@ -338,6 +338,12 @@ html, body {
   font-size: 10.5px;
   color: #6f6656;
 }
+/* 地圖標籤上，需要預約的景點時段也用黃色呼應 */
+.marker-hours-booking {
+  font-weight: 700;
+  background: #2b2620;
+  color: var(--highlight-yellow);
+}
 /* 放大到一定程度才全部顯示 */
 #map.show-labels .marker-label { display: block; }
 /* 勾選的景點不管縮放到哪都要看得到名字 */
@@ -418,6 +424,13 @@ html, body {
   color: var(--text-muted);
   font-weight: 400;
 }
+/* 需要預約／申請的景點，連營業時間也一起用黃色提醒 */
+.detail-hours-booking {
+  background: #2b2620;
+  color: var(--highlight-yellow);
+  border-left-color: var(--highlight-yellow);
+}
+.detail-hours-booking .hours-note { color: #d9cfbe; }
 .hours-note {
   display: block;
   margin-top: 2px;

@@ -214,7 +214,7 @@ function renderMarkers() {
     label.textContent = spot.name;
     if (spot.hours) {
       const hrs = document.createElement('span');
-      hrs.className = 'marker-hours';
+      hrs.className = 'marker-hours' + (spot.booking ? ' marker-hours-booking' : '');
       hrs.textContent = spot.hours.split('（')[0];   // 標籤只放主要時段，細節在介紹裡
       label.appendChild(hrs);
     }
@@ -473,8 +473,12 @@ function moveSelected(index, delta) {
 
 // 營業／開放時間。沒有資料時要明講，不要讓人誤以為「沒寫＝隨時可以去」
 function buildHours(spot) {
+  // 需要預約／申請的景點，連營業時間也一起用黃色提醒——
+  // 兩個警示互相呼應，讓人一眼就知道「這個地方要多留意」。
+  // 不需要預約的景點維持一般淺色樣式。
+  const needsBooking = spot.booking ? ' detail-hours-booking' : '';
   if (spot.hours) {
-    return `<div class="detail-hours">🕘 ${spot.hours}
+    return `<div class="detail-hours${needsBooking}">🕘 ${spot.hours}
       <span class="hours-note">參考時間，出發前請以官網或下方 Google 地圖確認</span></div>`;
   }
   return `<div class="detail-hours detail-hours-none">🕘 營業時間未收錄
