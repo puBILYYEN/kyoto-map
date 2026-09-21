@@ -13,6 +13,7 @@
   --text: #2b2620;
   --text-muted: #6f6656;
   --accent: #b5482b;
+  --highlight-yellow: #ffd400;   /* 預約標籤與營業時間文字統一用這個黃色 */
 }
 
 * { box-sizing: border-box; }
@@ -178,8 +179,8 @@ html, body {
   padding: 1px 7px;
   border-radius: 999px;
   font-size: 11px;
-  font-weight: 600;
-  color: #fff;
+  font-weight: 700;
+  color: var(--highlight-yellow);
   vertical-align: 1px;
 }
 .spot-area { font-size: 12px; color: var(--text-muted); }
@@ -290,11 +291,14 @@ html, body {
 }
 .marker-hours {
   display: block;
-  font-weight: 400;
+  margin-top: 1px;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-weight: 700;
   font-size: 10.5px;
-  color: #6f6656;
+  background: #2b2620;
+  color: var(--highlight-yellow);
 }
-.marker-selected .marker-hours { color: #d9cfbe; }
 /* 放大到一定程度才全部顯示 */
 #map.show-labels .marker-label { display: block; }
 /* 勾選的景點不管縮放到哪都要看得到名字 */
@@ -363,17 +367,26 @@ html, body {
   margin-bottom: 10px;
   padding: 7px 10px;
   border-radius: 6px;
-  background: #f3efe6;
+  background: #2b2620;
+  color: var(--highlight-yellow);
+  font-weight: 600;
   font-size: 13.5px;
   line-height: 1.6;
 }
-.detail-hours-none { color: var(--text-muted); }
+/* 沒收錄時是提示語，不是真正的營業時間，維持原本淺色樣式即可 */
+.detail-hours-none {
+  background: #f3efe6;
+  color: var(--text-muted);
+  font-weight: 400;
+}
 .hours-note {
   display: block;
   margin-top: 2px;
   font-size: 12px;
-  color: var(--text-muted);
+  font-weight: 400;
+  color: #d9cfbe;   /* 深底上用淺米色，跟黃色的主要時段文字做出層次 */
 }
+.detail-hours-none .hours-note { color: var(--text-muted); }
 .detail-desc { font-size: 14.5px; line-height: 1.7; }
 .booking-box {
   display: flex;

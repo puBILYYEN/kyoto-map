@@ -26,8 +26,8 @@ const CATEGORY_META = {
 // 預約／申請的三種等級
 const BOOKING_META = {
   permit:      { label: '需事前申請', color: '#8c2f39' },
-  required:    { label: '必須預約',   color: '#c2571f' },
-  recommended: { label: '建議預約',   color: '#8a7a4f' },
+  required:    { label: '必須預約',   color: '#9c3f13' },   // 加深，讓黃字對比度足夠
+  recommended: { label: '建議預約',   color: '#5f5433' },   // 加深，讓黃字對比度足夠
 };
 
 // 行前要準備的證件與線上登錄（不屬於任何單一景點，由上方「行前準備」按鈕開啟）
