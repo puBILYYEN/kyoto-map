@@ -5,6 +5,7 @@ let searchTerm = '';
 let selectedIds = [];     // 依點選順序排列，用於產生路線
 let activeSpotId = null;  // 目前顯示在下方詳細介紹的景點
 const markers = {};       // id -> maplibregl.Marker
+let mapLoaded = false;    // 地圖圖層載入完成後才能畫連線
 
 // ---------- 地圖初始化 ----------
 const map = new maplibregl.Map({
@@ -16,8 +17,28 @@ const map = new maplibregl.Map({
 map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
 map.on('load', () => {
+  // 勾選景點之間的虛線連線（依勾選順序串起來）
+  map.addSource('routeLine', {
+    type: 'geojson',
+    data: { type: 'FeatureCollection', features: [] },
+  });
+  map.addLayer({
+    id: 'routeLine',
+    type: 'line',
+    source: 'routeLine',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: {
+      'line-color': '#2b2620',
+      'line-width': 2.5,
+      'line-opacity': 0.7,
+      'line-dasharray': [2, 1.6],
+    },
+  });
+  mapLoaded = true;
+
   renderMarkers();
   fitToVisibleSpots();
+  updateRouteLine();
 });
 
 // ---------- 工具 ----------
@@ -29,6 +50,36 @@ function getVisibleSpots() {
       s.name.toLowerCase().includes(term) ||
       s.area.toLowerCase().includes(term);
     return catOk && searchOk;
+  });
+}
+
+// 兩點之間的直線距離（公里），用 haversine 公式計算
+function distanceKm(a, b) {
+  const R = 6371;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+function formatDistance(km) {
+  return km < 1 ? `${Math.round(km * 1000)} 公尺` : `${km.toFixed(1)} 公里`;
+}
+
+// 依目前勾選順序，在地圖上畫出連線
+function updateRouteLine() {
+  if (!mapLoaded) return;
+  const coords = selectedIds
+    .map(id => SPOTS.find(s => s.id === id))
+    .filter(Boolean)
+    .map(s => [s.lng, s.lat]);
+  map.getSource('routeLine').setData({
+    type: 'FeatureCollection',
+    features: coords.length >= 2
+      ? [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } }]
+      : [],
   });
 }
 
@@ -55,6 +106,12 @@ function renderMarkers() {
     el.style.boxShadow = '0 0 3px rgba(0,0,0,0.4)';
     el.style.background = CATEGORY_META[spot.categories[0]].color;
     el.style.cursor = 'pointer';
+    // 被勾選時要在圓點中央顯示順序數字，所以用 flex 置中
+    el.style.alignItems = 'center';
+    el.style.justifyContent = 'center';
+    el.style.color = '#fff';
+    el.style.fontWeight = '700';
+    el.style.lineHeight = '1';
 
     el.addEventListener('click', () => {
       showDetail(spot.id);
@@ -75,16 +132,18 @@ function updateMarkerVisibility() {
     const marker = markers[spot.id];
     if (!marker) return;
     const el = marker.getElement();
-    el.style.display = visibleIds.has(spot.id) ? 'block' : 'none';
-    el.style.outline = selectedIds.includes(spot.id) ? '3px solid #222' : 'none';
-    el.style.transform2 = null; // no-op, keep default transform from maplibre
-    if (spot.id === activeSpotId) {
-      el.style.width = '22px';
-      el.style.height = '22px';
-    } else {
-      el.style.width = '16px';
-      el.style.height = '16px';
-    }
+    el.style.display = visibleIds.has(spot.id) ? 'flex' : 'none';
+
+    const order = selectedIds.indexOf(spot.id);   // -1 代表沒被勾選
+    el.style.outline = order >= 0 ? '3px solid #222' : 'none';
+
+    // 勾選的點放大並標上順序，目前查看中的點也稍微放大
+    const size = order >= 0 ? 24 : (spot.id === activeSpotId ? 22 : 16);
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+
+    el.textContent = order >= 0 ? String(order + 1) : '';
+    el.style.fontSize = order >= 9 ? '9px' : '11px';
   });
 }
 
@@ -180,6 +239,7 @@ function showDetail(spotId) {
     </div>
     <div class="detail-area">${spot.area}</div>
     <div class="detail-desc">${spot.desc}</div>
+    <a class="detail-link" href="${buildPlaceUrl(spot)}" target="_blank" rel="noopener noreferrer">📍 在 Google 地圖上看這個地方（照片・評價・營業時間）</a>
   `;
   map.flyTo({ center: [spot.lng, spot.lat], zoom: 14.5, duration: 600 });
   renderList();
@@ -203,11 +263,24 @@ function renderSelection() {
   document.getElementById('selCount').textContent = `(${selectedIds.length})`;
   const ol = document.getElementById('selectedList');
   ol.innerHTML = '';
-  selectedIds.forEach(id => {
+  selectedIds.forEach((id, i) => {
     const spot = SPOTS.find(s => s.id === id);
     if (!spot) return;
     const li = document.createElement('li');
-    li.textContent = `${spot.name}（${spot.area}）`;
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'sel-name';
+    nameEl.textContent = `${spot.name}（${spot.area}）`;
+    nameEl.addEventListener('click', () => showDetail(spot.id));
+
+    const actions = document.createElement('span');
+    actions.className = 'sel-actions';
+    actions.appendChild(makeSelBtn('▲', '往前移一位', i === 0, () => moveSelected(i, -1)));
+    actions.appendChild(makeSelBtn('▼', '往後移一位', i === selectedIds.length - 1, () => moveSelected(i, 1)));
+    actions.appendChild(makeSelBtn('✕', '從清單移除', false, () => toggleSelect(spot.id)));
+
+    li.appendChild(nameEl);
+    li.appendChild(actions);
     ol.appendChild(li);
   });
 
@@ -215,20 +288,61 @@ function renderSelection() {
   routeWrap.innerHTML = '';
 
   if (selectedIds.length >= 2) {
+    const segments = [];
+    let total = 0;
     for (let i = 0; i < selectedIds.length - 1; i++) {
       const a = SPOTS.find(s => s.id === selectedIds[i]);
       const b = SPOTS.find(s => s.id === selectedIds[i + 1]);
       if (!a || !b) continue;
-      const url = buildTransitUrl(a, b);
+      const km = distanceKm(a, b);
+      total += km;
+      segments.push({ a, b, km, from: i + 1, to: i + 2 });
+    }
+
+    const totalEl = document.createElement('div');
+    totalEl.className = 'sel-total';
+    totalEl.textContent = `全程直線距離合計約 ${formatDistance(total)}（實際乘車距離會更長）`;
+    routeWrap.appendChild(totalEl);
+
+    segments.forEach(seg => {
       const btn = document.createElement('a');
       btn.className = 'route-btn';
-      btn.href = url;
+      btn.href = buildTransitUrl(seg.a, seg.b);
       btn.target = '_blank';
       btn.rel = 'noopener noreferrer';
-      btn.textContent = `🚉 ${a.name} → ${b.name}（開啟大眾運輸路線）`;
+      btn.textContent = `🚉 ${seg.from}→${seg.to} ${seg.a.name} → ${seg.b.name}（直線 ${formatDistance(seg.km)}・查大眾運輸路線）`;
       routeWrap.appendChild(btn);
-    }
+    });
   }
+
+  updateRouteLine();
+}
+
+// 產生已選清單上的小按鈕（▲ ▼ ✕）
+function makeSelBtn(label, title, disabled, onClick) {
+  const btn = document.createElement('button');
+  btn.className = 'sel-btn';
+  btn.textContent = label;
+  btn.title = title;
+  btn.disabled = disabled;
+  btn.addEventListener('click', onClick);
+  return btn;
+}
+
+// 調整已選景點的順序（delta 為 -1 往前、+1 往後）
+function moveSelected(index, delta) {
+  const target = index + delta;
+  if (target < 0 || target >= selectedIds.length) return;
+  const [id] = selectedIds.splice(index, 1);
+  selectedIds.splice(target, 0, id);
+  renderSelection();
+  updateMarkerVisibility();
+}
+
+// 單一景點的 Google 地圖頁面（可看照片、評價、營業時間）
+function buildPlaceUrl(spot) {
+  const query = encodeURIComponent(`${spot.name} ${spot.lat},${spot.lng}`);
+  return `https://www.google.com/maps/search/?api=1&query=${query}`;
 }
 
 function buildTransitUrl(a, b) {
