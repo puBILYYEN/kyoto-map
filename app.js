@@ -529,19 +529,45 @@ const chatState = { history: [], busy: false, asked: false };
 
 function chatEl(id) { return document.getElementById(id); }
 
+// 把景點的實際資料整理成一行，讓導遊照我們的資料回答，而不是憑自己的記憶
+function describeSpot(spot) {
+  let line = `${spot.name}（${spot.area}）：${spot.desc}`;
+  if (spot.booking) {
+    const meta = BOOKING_META[spot.booking.level];
+    line += `【${meta.label}：${spot.booking.note}】`;
+  }
+  return line;
+}
+
 // 把目前畫面狀態告訴導遊，它才知道「我選的這幾個」是指哪幾個
 function buildGuideContext() {
   const parts = [];
   const selected = selectedIds.map(id => SPOTS.find(s => s.id === id)).filter(Boolean);
+
   if (selected.length) {
-    parts.push('使用者目前依序選了這些景點：' +
-      selected.map((s, i) => `${i + 1}.${s.name}（${s.area}）`).join('、'));
+    parts.push('使用者目前依序勾選了這些景點：');
+    selected.forEach((spot, i) => parts.push(`${i + 1}. ${describeSpot(spot)}`));
+
+    // 相鄰兩點的直線距離，導遊才有依據判斷順不順路
+    if (selected.length >= 2) {
+      const legs = [];
+      for (let i = 0; i < selected.length - 1; i++) {
+        legs.push(`${i + 1}→${i + 2} 直線 ${formatDistance(distanceKm(selected[i], selected[i + 1]))}`);
+      }
+      parts.push('各段直線距離（實際乘車會更長）：' + legs.join('、'));
+    }
   }
+
   const active = SPOTS.find(s => s.id === activeSpotId);
-  if (active) parts.push(`目前正在看的景點是：${active.name}（${active.area}）`);
-  if (activeCategory !== 'all' && CATEGORY_META[activeCategory]) {
-    parts.push(`目前篩選的分類是：${CATEGORY_META[activeCategory].label}`);
+  if (active && !selected.includes(active)) {
+    parts.push('使用者目前正在看的景點：' + describeSpot(active));
   }
+
+  if (activeCategory !== 'all' && CATEGORY_META[activeCategory]) {
+    parts.push(`目前篩選的分類：${CATEGORY_META[activeCategory].label}`);
+  }
+
+  if (!parts.length) parts.push('使用者目前還沒有勾選任何景點。');
   return parts.join('\n');
 }
 
@@ -605,20 +631,31 @@ async function sendToGuide(text) {
     return;
   }
 
+  if (navigator.onLine === false) {
+    addChatMessage('bot', '手機目前沒有網路。' + AI_CONFIG.offlineNote, 'chat-msg-warn');
+    return;
+  }
+
   chatState.busy = true;
   chatEl('chatSend').disabled = true;
   const thinking = addChatMessage('bot', '導遊思考中…', 'chat-msg-thinking');
 
+  const payload = JSON.stringify({
+    question,
+    context: buildGuideContext(),
+    history: chatState.history.slice(-6),   // 只帶最近幾輪，省流量
+  });
+
   try {
-    const res = await fetch(AI_CONFIG.endpoint + '/ask', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        question,
-        context: buildGuideContext(),
-        history: chatState.history.slice(-6),   // 只帶最近幾輪，省流量
-      }),
-    });
+    let res;
+    try {
+      res = await postToGuide(payload, 30000);
+    } catch (first) {
+      // Render 免費方案閒置會休眠，第一次請求常常失敗或很慢。
+      // 自動重試一次，並讓使用者知道在等什麼，而不是以為壞掉了。
+      thinking.textContent = '後端休眠中，正在喚醒…（最多約 60 秒，只有第一次會這麼久）';
+      res = await postToGuide(payload, 70000);
+    }
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     const answer = (data && data.answer) ? data.answer : '導遊沒有回覆內容，請再問一次。';
@@ -627,13 +664,26 @@ async function sendToGuide(text) {
     chatState.history.push({ q: question, a: answer });
   } catch (err) {
     thinking.remove();
+    const reason = err.name === 'AbortError' ? '等太久沒有回應' : err.message;
     addChatMessage('bot',
-      '連不上導遊（' + err.message + '）。如果是剛打開網頁，後端可能還在喚醒中，等十幾秒再試一次。' +
-      AI_CONFIG.offlineNote, 'chat-msg-warn');
+      '連不上導遊（' + reason + '）。請再按一次送出試試看。' + AI_CONFIG.offlineNote,
+      'chat-msg-warn');
   } finally {
     chatState.busy = false;
     chatEl('chatSend').disabled = false;
   }
+}
+
+// 帶逾時的請求，避免手機訊號差時一直轉圈
+function postToGuide(payload, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(AI_CONFIG.endpoint + '/ask', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: payload,
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timer));
 }
 
 chatEl('chatBtn').addEventListener('click', openChat);

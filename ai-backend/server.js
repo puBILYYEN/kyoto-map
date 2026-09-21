@@ -72,7 +72,7 @@ function send(res, status, body, origin) {
   res.end(JSON.stringify(body));
 }
 
-function readBody(req, limitBytes = 16 * 1024) {
+function readBody(req, limitBytes = 32 * 1024) {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks = [];
@@ -99,7 +99,7 @@ async function askAI({ question, context, history }) {
   }
 
   const userContent = context
-    ? `【目前畫面狀態】\n${String(context).slice(0, 2000)}\n\n【問題】\n${question}`
+    ? `【目前畫面狀態】\n${String(context).slice(0, 6000)}\n\n【問題】\n${question}`
     : question;
   messages.push({ role: 'user', content: userContent });
 
