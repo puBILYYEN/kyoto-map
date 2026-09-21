@@ -2,6 +2,7 @@
 
 let activeCategory = 'all';
 let searchTerm = '';
+let bookingOnly = false;  // 只顯示需要預約或事前申請的景點
 let selectedIds = [];     // 依點選順序排列，用於產生路線
 let activeSpotId = null;  // 目前顯示在下方詳細介紹的景點
 const markers = {};       // id -> maplibregl.Marker
@@ -50,7 +51,8 @@ function getVisibleSpots() {
     const searchOk = !term ||
       s.name.toLowerCase().includes(term) ||
       s.area.toLowerCase().includes(term);
-    return catOk && searchOk;
+    const bookingOk = !bookingOnly || !!s.booking;
+    return catOk && searchOk && bookingOk;
   });
 }
 
@@ -217,7 +219,11 @@ function renderList() {
 
     const info = document.createElement('div');
     info.className = 'spot-info';
-    info.innerHTML = `<div class="spot-name">${spot.name}</div><div class="spot-area">${spot.area}</div>`;
+    const tag = spot.booking
+      ? `<span class="booking-tag" style="background:${BOOKING_META[spot.booking.level].color}">${BOOKING_META[spot.booking.level].label}</span>`
+      : '';
+    info.innerHTML =
+      `<div class="spot-name">${spot.name}${tag}</div><div class="spot-area">${spot.area}</div>`;
 
     item.appendChild(checkbox);
     item.appendChild(dot);
@@ -248,6 +254,7 @@ function showDetail(spotId) {
     </div>
     <div class="detail-area">${spot.area}</div>
     <div class="detail-desc">${spot.desc}</div>
+    ${buildBookingBox(spot)}
     <a class="detail-link" href="${buildPlaceUrl(spot)}" target="_blank" rel="noopener noreferrer">📍 在 Google 地圖上看（照片・評價・營業時間）</a>
   `;
   if (mapIsVisible()) {
@@ -359,6 +366,34 @@ function moveSelected(index, delta) {
   updateMarkerVisibility();
 }
 
+// 需要預約或事前申請的提醒方塊
+function buildBookingBox(spot) {
+  if (!spot.booking) return '';
+  const meta = BOOKING_META[spot.booking.level];
+  return `
+    <div class="booking-box" style="border-left-color:${meta.color}">
+      <span class="booking-tag" style="background:${meta.color}">${meta.label}</span>
+      <span class="booking-note">${spot.booking.note}</span>
+    </div>`;
+}
+
+// 行前準備（證件與線上登錄），不屬於任何景點
+function showPrep() {
+  activeSpotId = null;
+  document.getElementById('detailBody').innerHTML = `
+    <div class="detail-header"><h2>${TRIP_PREP.title}</h2></div>
+    <div class="detail-area">${TRIP_PREP.note}</div>
+    ${TRIP_PREP.groups.map(g => `
+      <div class="prep-group">
+        <h3>${g.heading}</h3>
+        <ul>${g.items.map(item => `<li>${item}</li>`).join('')}</ul>
+      </div>`).join('')}
+  `;
+  if (mobileQuery.matches) openDetailSheet();
+  renderList();
+  updateMarkerVisibility();
+}
+
 // 單一景點的 Google 地圖頁面（可看照片、評價、營業時間）
 // 有填 address 就用地址查，比用概略座標精準
 function buildPlaceUrl(spot) {
@@ -436,12 +471,21 @@ mobileQuery.addEventListener('change', () => {
   requestAnimationFrame(() => map.resize());
 });
 
-// ---------- 搜尋 ----------
+// ---------- 搜尋與篩選 ----------
 document.getElementById('searchInput').addEventListener('input', (e) => {
   searchTerm = e.target.value;
   renderList();
   updateMarkerVisibility();
 });
+
+document.getElementById('bookingOnly').addEventListener('change', (e) => {
+  bookingOnly = e.target.checked;
+  renderList();
+  updateMarkerVisibility();
+  fitToVisibleSpots();
+});
+
+document.getElementById('prepBtn').addEventListener('click', showPrep);
 
 // ---------- 初始化 ----------
 renderTabs();

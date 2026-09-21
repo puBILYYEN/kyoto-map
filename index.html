@@ -10,7 +10,10 @@
 <body>
   <div id="app" data-mview="list" data-detail="closed">
     <header class="topbar">
-      <h1>京都行程景點地圖</h1>
+      <div class="topbar-row">
+        <h1>京都行程景點地圖</h1>
+        <button type="button" class="prep-btn" id="prepBtn">🛂 行前準備</button>
+      </div>
       <p class="subtitle">依分類瀏覽 · 點景點看詳細介紹 · 勾選多個景點可開啟大眾運輸路線</p>
     </header>
 
@@ -19,6 +22,10 @@
         <div class="tabs" id="tabs"></div>
         <div class="search-box">
           <input type="text" id="searchInput" placeholder="搜尋景點名稱或地區…">
+          <label class="filter-toggle">
+            <input type="checkbox" id="bookingOnly">
+            只看需要預約／申請的景點
+          </label>
         </div>
         <div class="spot-list" id="spotList"></div>
 
