@@ -304,14 +304,13 @@ html, body {
   border: 2px solid #fff;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
-/* 地圖標記的名稱標籤 */
+/* 地圖標記的名稱標籤。
+   圓點沒有方向性，標籤不一定要貼在正下方——貼左邊、右邊都可以。
+   幾個現實中緊挨著的景點（同一座寺院內的餐廳、水池等）會指定
+   labelSide 貼到旁邊，避免跟主景點的標籤疊在一起。 */
 .marker-label {
   display: none;
   position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-top: 4px;
   padding: 2px 6px;
   border-radius: 4px;
   background: rgba(255, 253, 248, 0.92);
@@ -323,6 +322,9 @@ html, body {
   white-space: nowrap;
   pointer-events: none;   /* 不要擋到點擊圓點 */
 }
+.marker-label-below { top: 100%; left: 50%; transform: translateX(-50%); margin-top: 4px; }
+.marker-label-right { top: 50%; left: 100%; transform: translateY(-50%); margin-left: 6px; }
+.marker-label-left  { top: 50%; right: 100%; left: auto; transform: translateY(-50%); margin-right: 6px; }
 .marker-hours {
   display: block;
   margin-top: 1px;

@@ -367,7 +367,7 @@ const SPOTS = [
   { id:'s08', categories:['shopping'], name:'新京極商店街', area:'市中心', lat:35.0069, lng:135.7688, desc:'藥妝、伴手禮、平價服飾聚集的長型商店街，晚上營業到9~10點。' },
   { id:'s09', categories:['shopping'], name:'河原町通（四条周邊）', area:'市中心', lat:35.0037, lng:135.7695, desc:'松本清、大國藥妝、SPRING藥妝等大型連鎖藥妝聚集的購物大街。' },
   { id:'s10', categories:['shopping'], name:'錦市場', area:'市中心', lat:35.0053, lng:135.7649, desc:'有「京都廚房」之稱，適合順道採買食品類伴手禮。' },
-  { id:'s11', categories:['shopping'], name:'京都車站周邊（Porta地下街／近鐵名店街）', area:'京都車站', lat:34.9854, lng:135.7584, desc:'車站直通，回程前補貨藥妝與伴手禮最方便的地點。' },
+  { id:'s11', categories:['shopping'], name:'京都車站周邊（Porta地下街／近鐵名店街）', area:'京都車站', lat:34.9854, lng:135.7584, labelSide:'left', desc:'車站直通，回程前補貨藥妝與伴手禮最方便的地點。' },
   { id:'s12', categories:['shopping'], name:'大丸京都店', area:'市中心', lat:35.0044, lng:135.7681, desc:'地下美食街與藥妝專櫃齊全，百貨式一站購足。' },
 
   // ------- 美景 -------
@@ -379,7 +379,7 @@ const SPOTS = [
   { id:'v06', categories:['scenic'], name:'蹴上鐵道遺址（Incline）', area:'洛東', lat:35.0092, lng:135.7860, desc:'廢棄鐵軌與枕木交織，春天櫻花著稱，平常也是熱門拍照秘境。' },
   { id:'v07', categories:['scenic'], name:'將軍塚青龍殿', area:'洛東山頂', lat:35.0004, lng:135.8025, desc:'京都市街展望台，大舞台居高臨下俯瞰全市景觀。' },
   { id:'v08', categories:['scenic'], name:'東寺五重塔倒映水池', area:'市中心・南', lat:34.9816, lng:135.7480, desc:'池畔倒影搭配五重塔，是東寺境內經典的攝影構圖。' },
-  { id:'v09', categories:['scenic'], name:'南禪寺水路閣', area:'洛東', lat:35.0111, lng:135.7947, desc:'紅磚砌成的水道橋，帶有異國風情的建築美感。' },
+  { id:'v09', categories:['scenic'], name:'南禪寺水路閣', area:'洛東', lat:35.0111, lng:135.7947, labelSide:'right', desc:'紅磚砌成的水道橋，帶有異國風情的建築美感。' },
   { id:'v10', categories:['scenic'], name:'廣澤池', area:'嵐山北', lat:35.0328, lng:135.6857, desc:'嵯峨野三名跡之一，水面寧靜，遊客較少的私房景點。' },
   { id:'v11', categories:['scenic'], name:'大澤池', area:'嵐山', lat:35.0282, lng:135.6785, desc:'大覺寺境內，是日本庭園史上最古老的池泉之一。' },
   { id:'v12', categories:['scenic'], name:'哲學之道', area:'洛東', lat:35.0223, lng:135.7965, desc:'沿疏水道而行的散步小徑，銀閣寺與南禪寺之間的優美路線。' },
@@ -389,8 +389,8 @@ const SPOTS = [
     booking:{ level:'recommended', note:'可現場候補，但旺季等候時間長，建議事先預約。航程約 2 小時，中途無法下船。' }, desc:'從龜岡出發順流而下至嵐山的傳統遊船體驗，約2小時航程。' },
   { id:'v15', categories:['scenic'], name:'宇治川河畔', area:'宇治', lat:34.8908, lng:135.8083, desc:'綠意盎然的河岸步道，鄰近平等院，適合悠閒散步。' },
   { id:'v16', categories:['scenic'], name:'金閣寺鏡湖池倒影', area:'洛北', lat:35.0390, lng:135.7296, desc:'金閣倒映水面的經典畫面，是京都最知名的觀光意象之一。' },
-  { id:'v17', categories:['scenic'], name:'銀閣寺向月台', area:'洛北・左京', lat:35.0267, lng:135.7985, desc:'圓錐狀白砂造景與東山借景相映，侘寂美學的代表景觀。' },
-  { id:'v18', categories:['scenic'], name:'京都塔夜景', area:'京都車站', lat:34.9856, lng:135.7593, desc:'車站前地標塔樓，登塔展望台可俯瞰京都夜景。' },
+  { id:'v17', categories:['scenic'], name:'銀閣寺向月台', area:'洛北・左京', lat:35.0267, lng:135.7985, labelSide:'right', desc:'圓錐狀白砂造景與東山借景相映，侘寂美學的代表景觀。' },
+  { id:'v18', categories:['scenic'], name:'京都塔夜景', area:'京都車站', lat:34.9856, lng:135.7593, labelSide:'right', desc:'車站前地標塔樓，登塔展望台可俯瞰京都夜景。' },
 
   // ------- 宇治抹茶體驗之旅（新增專屬景點）-------
   { id:'u01', categories:['ujimatcha'], name:'中村藤吉本店', area:'宇治', lat:34.8916, lng:135.8073, desc:'創業於安政元年的宇治茶老鋪，抹茶生茶凍與抹茶聖代聞名，古民家改建的用餐空間別具風情。' },
@@ -400,13 +400,13 @@ const SPOTS = [
   { id:'u04', categories:['ujimatcha'], name:'辻利兵衛本店', area:'宇治', lat:34.8909, lng:135.8069, desc:'宇治茶老鋪，抹茶霜淇淋與抹茶拿鐵是排隊名物，適合逛完平等院順路品嚐。' },
 
   // ------- 精進料理 -------
-  { id:'j01', categories:['shojin'], name:'篩月（天龍寺）', area:'嵐山', lat:35.0155, lng:135.6748,
+  { id:'j01', categories:['shojin'], name:'篩月（天龍寺）', area:'嵐山', lat:35.0155, lng:135.6748, labelSide:'right',
     booking:{ level:'recommended', note:'用餐需另外購買天龍寺庭園參拜券，用餐時段集中，建議事先預約。' }, desc:'天龍寺直營精進料理店，可邊賞曹源池庭園邊用餐。' },
-  { id:'j02', categories:['shojin'], name:'西源院（龍安寺）', area:'洛北', lat:35.0341, lng:135.7188,
+  { id:'j02', categories:['shojin'], name:'西源院（龍安寺）', area:'洛北', lat:35.0341, lng:135.7188, labelSide:'right',
     booking:{ level:'recommended', note:'人多時需候位，建議事先預約。' }, desc:'龍安寺境內，湯豆腐料理搭配枯山水石庭景致。' },
-  { id:'j03', categories:['shojin'], name:'奧丹 南禪寺', area:'洛東', lat:35.0113, lng:135.7951,
+  { id:'j03', categories:['shojin'], name:'奧丹 南禪寺', area:'洛東', lat:35.0113, lng:135.7951, labelSide:'right',
     booking:{ level:'recommended', note:'名店且座位有限，用餐尖峰建議事先預約。' }, desc:'江戶時代創業的湯豆腐老舖，南禪寺參拜後的經典選擇。' },
-  { id:'j04', categories:['shojin'], name:'順正', area:'洛東', lat:35.0118, lng:135.7938,
+  { id:'j04', categories:['shojin'], name:'順正', area:'洛東', lat:35.0118, lng:135.7938, labelSide:'left',
     booking:{ level:'recommended', note:'湯豆腐懷石套餐，建議事先預約較不用等候。' }, desc:'南禪寺周邊的湯豆腐懷石料理名店，庭園氛圍優雅。' },
   { id:'j05', categories:['shojin'], name:'泉仙 大德寺一久', area:'洛北', lat:35.0420, lng:135.7470,
     booking:{ level:'required', note:'精進料理採預約制，請提前致電或線上預約。' }, desc:'大德寺境內，自古傳承的精進料理老店。' },
@@ -415,7 +415,7 @@ const SPOTS = [
   { id:'j07', categories:['shojin'], name:'東林院', area:'洛北', lat:35.0209, lng:135.7186,
     booking:{ level:'required', note:'精進料理體驗採預約制，且僅於特定期間開放，需提前確認。' }, desc:'妙心寺塔頭，可預約精進料理體驗附抹茶，氣氛靜謐。' },
   { id:'j08', categories:['shojin'], name:'竹馬', area:'東山', lat:35.0000, lng:135.7838, desc:'鄰近清水寺，家庭經營的京料理店，提供精緻精進料理。' },
-  { id:'j09', categories:['shojin'], name:'瓢亭', area:'洛東', lat:35.0122, lng:135.7935,
+  { id:'j09', categories:['shojin'], name:'瓢亭', area:'洛東', lat:35.0122, lng:135.7935, labelSide:'left',
     booking:{ level:'required', note:'四百年歷史的茶懷石老店，本店採預約制，價位較高。' }, desc:'南禪寺附近，四百年歷史的茶懷石老店。' },
   { id:'j10', categories:['shojin'], name:'山とう本店', area:'市中心', lat:35.0042, lng:135.7605, desc:'市中心的傳統京料理店，菜色中融入精進料理元素。' },
 ];

@@ -210,7 +210,7 @@ function renderMarkers() {
 
     // 名稱標籤：放大到一定程度才顯示，勾選的景點則一律顯示
     const label = document.createElement('span');
-    label.className = 'marker-label';
+    label.className = 'marker-label marker-label-' + (spot.labelSide || 'below');
     label.textContent = spot.name;
     if (spot.hours) {
       const hrs = document.createElement('span');
