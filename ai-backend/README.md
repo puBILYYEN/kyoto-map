@@ -32,11 +32,21 @@ Render 支援指定子目錄部署（Root Directory），所以不需要另開�
 
 | 變數 | 值 |
 |---|---|
-| `AI_BASE_URL` | 你的 OpenAI 相容端點網址（結尾不加斜線） |
+| `AI_BASE_URL` | 供應商的 OpenAI 相容端點（結尾不加斜線）。程式會自動接上 `/v1/chat/completions` |
+| `AI_CHAT_URL` | **選填**。路徑不符慣例時用這個直接指定完整網址，指定後會忽略 `AI_BASE_URL` |
 | `AI_API_KEY` | 你的金鑰（機密，自己手動輸入） |
-| `AI_MODEL` | `auto/best-free` |
+| `AI_MODEL` | 模型名稱，依供應商而定 |
 | `ALLOWED_ORIGINS` | `https://kyoto-trip-map.vercel.app` |
 | `RATE_LIMIT` | `20`（可不填） |
+
+常見供應商的填法：
+
+| 供應商 | 要填的變數 |
+|---|---|
+| Groq | `AI_BASE_URL` = `https://api.groq.com/openai` |
+| OpenRouter | `AI_BASE_URL` = `https://openrouter.ai/api` |
+| Google Gemini | `AI_CHAT_URL` = `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions` |
+| OpenAI | `AI_BASE_URL` = `https://api.openai.com` |
 
 5. Create Web Service，拿到網址
 6. 把網址填進根目錄 `data.js` 的 `AI_CONFIG.endpoint`

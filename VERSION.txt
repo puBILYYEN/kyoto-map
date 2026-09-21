@@ -1,7 +1,15 @@
-版本：v18
+版本：v19
 更新時間：2026-09-21
 
-本版更新（導遊後端接上線）：
+本版修正（後端支援不同供應商的端點路徑）：
+- 原本寫死 AI_BASE_URL + "/v1/chat/completions"，Gemini 的路徑是
+  /v1beta/openai/chat/completions，會組出錯誤網址
+- 新增選填的 AI_CHAT_URL，可直接指定完整端點網址
+- /healthz 一併回報目前使用的模型名稱，方便確認設定有沒有生效
+- ⚠️ 改動了 ai-backend/，因為 autoDeploy 是關閉的，
+  需要到 Render 按一次 Manual Deploy 才會生效
+
+v18（導遊後端接上線）：
 - AI_CONFIG.endpoint 填入 https://kyoto-ai.onrender.com
 - 後端已部署在 Render（Blueprint 管理，服務名稱 kyoto-ai）
 - 注意：Render 的 AI_BASE_URL / AI_API_KEY 目前仍是 placeholder，

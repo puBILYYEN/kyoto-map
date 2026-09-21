@@ -16,6 +16,12 @@ const AI_BASE_URL = (process.env.AI_BASE_URL || '').replace(/\/+$/, '');
 const AI_API_KEY = process.env.AI_API_KEY || '';
 const AI_MODEL = process.env.AI_MODEL || 'auto/best-free';
 
+// 大部分供應商的路徑都是 <base>/v1/chat/completions，但不是全部
+// （例如 Gemini 是 /v1beta/openai/chat/completions）。
+// 不合慣例的就用 AI_CHAT_URL 直接指定完整網址。
+const AI_CHAT_URL = process.env.AI_CHAT_URL ||
+  (AI_BASE_URL ? `${AI_BASE_URL}/v1/chat/completions` : '');
+
 // 只允許自己的網站呼叫。沒設定的話預設只放行正式網址。
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ||
   'https://kyoto-trip-map.vercel.app')
@@ -110,7 +116,7 @@ async function askAI({ question, context, history }) {
   const timer = setTimeout(() => controller.abort(), 45000);
 
   try {
-    const res = await fetch(`${AI_BASE_URL}/v1/chat/completions`, {
+    const res = await fetch(AI_CHAT_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -160,7 +166,11 @@ const server = http.createServer(async (req, res) => {
 
   // 健康檢查：Render 用來確認服務活著，前端也用它把休眠的服務叫醒
   if (url.pathname === '/healthz') {
-    return send(res, 200, { ok: true, configured: Boolean(AI_BASE_URL && AI_API_KEY) }, allowed || '*');
+    return send(res, 200, {
+      ok: true,
+      configured: Boolean(AI_CHAT_URL && AI_API_KEY),
+      model: AI_MODEL,
+    }, allowed || '*');
   }
 
   if (url.pathname !== '/ask' || req.method !== 'POST') {
@@ -177,7 +187,7 @@ const server = http.createServer(async (req, res) => {
     return send(res, 429, { error: '問太快了，請稍等一下再問' }, allowed);
   }
 
-  if (!AI_BASE_URL || !AI_API_KEY) {
+  if (!AI_CHAT_URL || !AI_API_KEY) {
     return send(res, 500, { error: '伺服器尚未設定 AI_BASE_URL / AI_API_KEY' }, allowed);
   }
 
@@ -205,5 +215,6 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   console.log(`京都導遊後端已啟動，port ${PORT}`);
   console.log(`允許的來源：${ALLOWED_ORIGINS.join(', ')}`);
-  console.log(`AI 設定完成：${Boolean(AI_BASE_URL && AI_API_KEY)}`);
+  console.log(`AI 設定完成：${Boolean(AI_CHAT_URL && AI_API_KEY)}`);
+  console.log(`AI 端點：${AI_CHAT_URL || '(未設定)'}　模型：${AI_MODEL}`);
 });
