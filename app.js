@@ -6,6 +6,7 @@ let selectedIds = [];     // 依點選順序排列，用於產生路線
 let activeSpotId = null;  // 目前顯示在下方詳細介紹的景點
 const markers = {};       // id -> maplibregl.Marker
 let mapLoaded = false;    // 地圖圖層載入完成後才能畫連線
+let pendingFit = false;   // 地圖在手機版被隱藏時無法計算範圍，先記下來等顯示時再做
 
 // ---------- 地圖初始化 ----------
 const map = new maplibregl.Map({
@@ -83,7 +84,15 @@ function updateRouteLine() {
   });
 }
 
+// 手機版一次只顯示一個畫面，地圖被隱藏時容器寬高是 0，不能做範圍／飛行計算
+function mapIsVisible() {
+  const c = map.getContainer();
+  return c.offsetWidth > 0 && c.offsetHeight > 0;
+}
+
 function fitToVisibleSpots() {
+  if (!mapIsVisible()) { pendingFit = true; return; }
+  pendingFit = false;
   const visible = getVisibleSpots();
   if (!visible.length) return;
   const bounds = new maplibregl.LngLatBounds();
@@ -224,7 +233,7 @@ function renderList() {
 function showDetail(spotId) {
   activeSpotId = spotId;
   const spot = SPOTS.find(s => s.id === spotId);
-  const panel = document.getElementById('detailPanel');
+  const panel = document.getElementById('detailBody');
   if (!spot) {
     panel.innerHTML = '<div class="detail-placeholder">點選左側清單或地圖上的標記，查看景點詳細介紹</div>';
     return;
@@ -239,9 +248,12 @@ function showDetail(spotId) {
     </div>
     <div class="detail-area">${spot.area}</div>
     <div class="detail-desc">${spot.desc}</div>
-    <a class="detail-link" href="${buildPlaceUrl(spot)}" target="_blank" rel="noopener noreferrer">📍 在 Google 地圖上看這個地方（照片・評價・營業時間）</a>
+    <a class="detail-link" href="${buildPlaceUrl(spot)}" target="_blank" rel="noopener noreferrer">📍 在 Google 地圖上看（照片・評價・營業時間）</a>
   `;
-  map.flyTo({ center: [spot.lng, spot.lat], zoom: 14.5, duration: 600 });
+  if (mapIsVisible()) {
+    map.flyTo({ center: [spot.lng, spot.lat], zoom: 14.5, duration: 600 });
+  }
+  if (mobileQuery.matches) openDetailSheet();
   renderList();
   updateMarkerVisibility();
 }
@@ -261,6 +273,8 @@ function toggleSelect(spotId) {
 
 function renderSelection() {
   document.getElementById('selCount').textContent = `(${selectedIds.length})`;
+  const navSelBtn = document.querySelector('.mobile-nav button[data-mview="sel"]');
+  if (navSelBtn) navSelBtn.textContent = `✅ 已選 (${selectedIds.length})`;
   const ol = document.getElementById('selectedList');
   ol.innerHTML = '';
   selectedIds.forEach((id, i) => {
@@ -268,9 +282,14 @@ function renderSelection() {
     if (!spot) return;
     const li = document.createElement('li');
 
+    const numEl = document.createElement('span');
+    numEl.className = 'sel-num';
+    numEl.textContent = String(i + 1);
+
     const nameEl = document.createElement('span');
     nameEl.className = 'sel-name';
-    nameEl.textContent = `${spot.name}（${spot.area}）`;
+    nameEl.innerHTML =
+      `<span class="sel-spot-name">${spot.name}</span><span class="sel-spot-area">${spot.area}</span>`;
     nameEl.addEventListener('click', () => showDetail(spot.id));
 
     const actions = document.createElement('span');
@@ -279,6 +298,7 @@ function renderSelection() {
     actions.appendChild(makeSelBtn('▼', '往後移一位', i === selectedIds.length - 1, () => moveSelected(i, 1)));
     actions.appendChild(makeSelBtn('✕', '從清單移除', false, () => toggleSelect(spot.id)));
 
+    li.appendChild(numEl);
     li.appendChild(nameEl);
     li.appendChild(actions);
     ol.appendChild(li);
@@ -358,6 +378,63 @@ document.getElementById('clearSelection').addEventListener('click', () => {
   updateMarkerVisibility();
 });
 
+// ---------- 手機版畫面切換 ----------
+const mobileQuery = window.matchMedia('(max-width: 860px)');
+const appEl = document.getElementById('app');
+
+function setMobileView(view) {
+  appEl.dataset.mview = view;
+  document.querySelectorAll('.mobile-nav button').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mview === view);
+  });
+
+  // 地圖剛從隱藏切回顯示時要重算尺寸，否則會是一片空白
+  if (view === 'map') {
+    requestAnimationFrame(() => {
+      map.resize();
+      const spot = SPOTS.find(s => s.id === activeSpotId);
+      if (pendingFit) {
+        fitToVisibleSpots();
+      } else if (spot) {
+        map.flyTo({ center: [spot.lng, spot.lat], zoom: 14.5, duration: 400 });
+      }
+    });
+  }
+}
+
+// 手機（尤其 Android）習慣用返回鍵關閉浮出面板，所以開啟時壓一筆瀏覽紀錄，
+// 返回鍵會先把面板收起來，再按一次才會離開網頁
+function openDetailSheet() {
+  if (appEl.dataset.detail === 'open') return;
+  appEl.dataset.detail = 'open';
+  history.pushState({ detailSheet: true }, '');
+}
+
+function closeDetailSheet(fromBackButton) {
+  if (appEl.dataset.detail !== 'open') return;
+  appEl.dataset.detail = 'closed';
+  if (!fromBackButton && history.state && history.state.detailSheet) history.back();
+}
+
+window.addEventListener('popstate', () => closeDetailSheet(true));
+
+document.querySelectorAll('.mobile-nav button').forEach(btn => {
+  btn.addEventListener('click', () => setMobileView(btn.dataset.mview));
+});
+document.getElementById('detailClose').addEventListener('click', () => closeDetailSheet());
+document.getElementById('detailToMap').addEventListener('click', () => {
+  closeDetailSheet();
+  setMobileView('map');
+});
+
+// 轉螢幕方向或視窗縮放而跨過手機／桌機分界時，把狀態重設乾淨
+mobileQuery.addEventListener('change', () => {
+  closeDetailSheet();
+  // 桌機版不需要浮出面板的瀏覽紀錄
+  setMobileView('list');
+  requestAnimationFrame(() => map.resize());
+});
+
 // ---------- 搜尋 ----------
 document.getElementById('searchInput').addEventListener('input', (e) => {
   searchTerm = e.target.value;
@@ -369,3 +446,4 @@ document.getElementById('searchInput').addEventListener('input', (e) => {
 renderTabs();
 renderList();
 renderSelection();
+setMobileView('list');

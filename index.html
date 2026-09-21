@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div id="app">
+  <div id="app" data-mview="list" data-detail="closed">
     <header class="topbar">
       <h1>京都行程景點地圖</h1>
       <p class="subtitle">依分類瀏覽 · 點景點看詳細介紹 · 勾選多個景點可開啟大眾運輸路線</p>
@@ -33,10 +33,22 @@
       <main class="map-area">
         <div id="map"></div>
         <div class="detail-panel" id="detailPanel">
-          <div class="detail-placeholder">點選左側清單或地圖上的標記，查看景點詳細介紹</div>
+          <div class="detail-actions">
+            <button type="button" class="detail-tomap" id="detailToMap">🗺 看地圖</button>
+            <button type="button" class="detail-close" id="detailClose" aria-label="關閉">✕</button>
+          </div>
+          <div class="detail-body" id="detailBody">
+            <div class="detail-placeholder">點選左側清單或地圖上的標記，查看景點詳細介紹</div>
+          </div>
         </div>
       </main>
     </div>
+
+    <nav class="mobile-nav" id="mobileNav">
+      <button type="button" data-mview="list" class="active">📋 景點清單</button>
+      <button type="button" data-mview="map">🗺 地圖</button>
+      <button type="button" data-mview="sel">✅ 已選 (0)</button>
+    </nav>
   </div>
 
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>

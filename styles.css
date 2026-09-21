@@ -30,6 +30,7 @@ html, body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;   /* 手機瀏覽器網址列會伸縮，dvh 才是實際可見高度 */
 }
 
 .topbar {
@@ -137,10 +138,31 @@ html, body {
   background: #fbf8f2;
 }
 .selection-box h3 { margin: 0 0 6px; font-size: 13px; }
-.selection-box ol { margin: 0 0 8px; padding-left: 18px; font-size: 13px; }
-.selection-box li { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
-.sel-name { flex: 1; min-width: 0; cursor: pointer; }
-.sel-name:hover { text-decoration: underline; }
+.selection-box ol { margin: 0 0 8px; padding-left: 0; list-style: none; font-size: 13px; }
+.selection-box li { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.sel-num {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--text);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.sel-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+}
+.sel-name:hover .sel-spot-name { text-decoration: underline; }
+.sel-spot-name { font-weight: 600; }
+.sel-spot-area { font-size: 12px; color: var(--text-muted); }
 .sel-actions { display: flex; gap: 3px; flex-shrink: 0; }
 .sel-btn {
   width: 22px;
@@ -226,15 +248,150 @@ html, body {
 }
 .detail-link:hover { background: #f1e6d8; }
 
+.detail-actions {
+  display: none;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+.detail-tomap,
+.detail-close {
+  min-height: 38px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.detail-tomap:hover,
+.detail-close:hover { background: #f1e6d8; }
+
+/* 手機版底部導覽列（桌機隱藏） */
+.mobile-nav {
+  display: none;
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background: var(--panel-bg);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.mobile-nav button {
+  flex: 1;
+  height: 56px;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.mobile-nav button.active {
+  color: var(--accent);
+  font-weight: 700;
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+
 .maplibregl-popup-content {
   font-family: inherit;
   font-size: 13px;
 }
 
-/* Mobile */
+/* ---------- 平板：側欄收窄一點，其餘同桌機 ---------- */
+@media (min-width: 861px) and (max-width: 1100px) {
+  .sidebar { width: 285px; }
+  .topbar { padding: 12px 16px; }
+  .detail-panel { padding: 12px 16px; }
+}
+
+/* ---------- 手機：清單／地圖／已選 三個畫面用底部導覽列切換 ---------- */
 @media (max-width: 860px) {
-  .main { flex-direction: column; }
-  .sidebar { width: 100%; height: 46vh; border-right: none; border-bottom: 1px solid var(--border); }
-  .map-area { height: 54vh; }
-  .detail-panel { max-height: 50%; }
+  .topbar { padding: 9px 14px; }
+  .topbar h1 { font-size: 17px; }
+  .topbar .subtitle { font-size: 11.5px; }
+
+  /* 三個畫面重疊擺放，同一時間只顯示一個 */
+  .main { position: relative; }
+  .sidebar,
+  .map-area {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-right: none;
+  }
+  /* 用 visibility 而不是 display:none —— 地圖容器要一直保有正確尺寸，
+     否則切回地圖時 MapLibre 會算不出寬高而顯示空白 */
+  #app[data-mview="list"] .map-area,
+  #app[data-mview="sel"] .map-area,
+  #app[data-mview="map"] .sidebar {
+    visibility: hidden;
+    pointer-events: none;
+  }
+  #app[data-mview="list"] .selection-box,
+  #app[data-mview="sel"] .tabs,
+  #app[data-mview="sel"] .search-box,
+  #app[data-mview="sel"] .spot-list { display: none; }
+
+  /* 頁籤改成橫向滑動，不換行才不會吃掉太多高度 */
+  .tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab-btn { flex-shrink: 0; padding: 8px 14px; font-size: 13.5px; }
+
+  /* 輸入框字級必須 16px，否則 iOS 聚焦時會自動放大整個頁面 */
+  .search-box input { font-size: 16px; padding: 10px 12px; }
+
+  /* 手指點得到的大小 */
+  .spot-item { padding: 12px; gap: 10px; }
+  .spot-item input[type="checkbox"] { width: 20px; height: 20px; margin-top: 2px; }
+  .spot-name { font-size: 15px; }
+  .spot-area { font-size: 12.5px; }
+  .spot-dot { margin-top: 7px; }
+
+  .selection-box { height: 100%; max-height: none; border-top: none; }
+  .selection-box h3 { font-size: 14px; }
+  .selection-box ol { font-size: 14px; }
+  .selection-box li { padding: 4px 0; }
+  .sel-num { width: 26px; height: 26px; font-size: 13px; }
+  .sel-btn { width: 42px; height: 42px; font-size: 15px; }
+  .sel-spot-name { font-size: 14.5px; }
+  .sel-spot-area { font-size: 12.5px; }
+  .route-btn { padding: 11px 10px; font-size: 13px; }
+  .clear-btn { padding: 12px; font-size: 14px; }
+
+  /* 詳細介紹改成由下往上浮出的面板，蓋在清單或地圖上方 */
+  .detail-panel {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    z-index: 20;
+    max-height: 62%;
+    padding: 14px 16px 18px;
+    box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.18);
+    display: none;
+  }
+  /* 面板在被隱藏的畫面裡也要看得見，所以明確覆寫 visibility */
+  #app[data-detail="open"] .detail-panel {
+    display: block;
+    visibility: visible;
+    pointer-events: auto;
+  }
+  .detail-placeholder { display: none; }
+  .detail-actions { display: flex; }
+  .detail-link { width: 100%; text-align: center; padding: 11px; }
+
+  .mobile-nav { display: flex; }
+}
+
+/* ---------- 小尺寸手機 ---------- */
+@media (max-width: 380px) {
+  .topbar .subtitle { display: none; }
+  .mobile-nav button { font-size: 12px; }
 }
