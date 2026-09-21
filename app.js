@@ -1000,32 +1000,54 @@ function buildAskPhrase(spot) {
 }
 
 // 用手機內建的語音合成朗讀日文，這樣遇到日本人時按一下就等於幫忙開口問路，
-// 不用自己唸、也不用擔心發音不準
+// 不用自己唸、也不用擔心發音不準。
+//
+// 重要：如果手機沒有裝日文語音包，speechSynthesis 找不到日文語音時，
+// 有些裝置會「默默改用系統預設語音」唸這串日文字——實測發現會變成用
+// 中文發音硬套日文，比不播還糟糕（日本人聽了只會更困惑）。
+// 所以這裡刻意變嚴格：找不到真正的日文語音就不播，改成清楚引導去安裝，
+// 畫面上的日文文字一直都在，可以直接給對方看文字當備案。
+function showAskWarning(text) {
+  const warn = document.getElementById('askWarning');
+  if (!warn) return;
+  warn.textContent = text;
+  warn.hidden = false;
+}
+
 function speakJapanese(text) {
   if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
-    alert('這個瀏覽器不支援語音朗讀，請直接把畫面給對方看這句日文。');
+    showAskWarning('這個瀏覽器不支援語音朗讀，請直接把畫面給對方看這句日文。');
     return;
   }
   speechSynthesis.cancel();   // 停掉上一次可能還沒播完的
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = 'ja-JP';
-  utter.rate = 0.9;   // 稍微放慢，對方比較聽得清楚
 
-  let spoken = false;
-  const doSpeak = () => {
-    if (spoken) return;
-    spoken = true;
+  let handled = false;
+  const trySpeak = () => {
+    if (handled) return;
+    handled = true;
     const jaVoice = speechSynthesis.getVoices().find(v => v.lang && v.lang.toLowerCase().startsWith('ja'));
-    if (jaVoice) utter.voice = jaVoice;
+    if (!jaVoice) {
+      showAskWarning(
+        '這台手機還沒有安裝日文語音，播放出來的發音會不準確（可能會變成用中文發音硬唸日文）。\n\n' +
+        '請到手機「設定」裡搜尋「文字轉語音」，選擇文字轉語音引擎的設定 → 安裝語音資料 → ' +
+        '下載「日本語」語音包，裝好後再回來按一次播放。\n\n' +
+        '這段時間可以先直接把畫面給對方看這句日文。'
+      );
+      return;
+    }
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'ja-JP';
+    utter.voice = jaVoice;
+    utter.rate = 0.9;   // 稍微放慢，對方比較聽得清楚
     speechSynthesis.speak(utter);
   };
 
   // 有些瀏覽器第一次呼叫時語音清單還是空的，要等 voiceschanged 事件才拿得到
   if (speechSynthesis.getVoices().length) {
-    doSpeak();
+    trySpeak();
   } else {
-    speechSynthesis.addEventListener('voiceschanged', doSpeak, { once: true });
-    setTimeout(doSpeak, 400);   // 保險：萬一事件沒觸發，還是要播放（用瀏覽器預設語音）
+    speechSynthesis.addEventListener('voiceschanged', trySpeak, { once: true });
+    setTimeout(trySpeak, 400);   // 保險：萬一事件沒觸發，還是要判斷一次
   }
 }
 
@@ -1046,6 +1068,7 @@ function openAskDirections(point, lngLat) {
     <div class="phrase-zh">${phrase.zh}</div>
     <div class="phrase-ja phrase-ja-big">${phrase.ja}</div>
     <button type="button" class="ask-play-btn" id="askPlayBtn">🔊 播放日語問路</button>
+    <div class="ask-warning" id="askWarning" hidden></div>
     <div class="phrase-tip">${ASK_DIRECTIONS.tip}</div>
   `;
   document.getElementById('askPlayBtn').addEventListener('click', () => speakJapanese(phrase.ja));

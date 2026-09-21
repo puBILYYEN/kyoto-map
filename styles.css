@@ -664,6 +664,17 @@ html, body {
 }
 .ask-play-btn:hover { background: #9c3d24; }
 .ask-play-btn:active { transform: scale(0.98); }
+.ask-warning {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fdf0e6;
+  color: #8c4a22;
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-line;
+}
+.ask-warning[hidden] { display: none; }
 
 /* 線上導遊聊天視窗 */
 .chat-overlay {
