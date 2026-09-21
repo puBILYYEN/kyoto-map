@@ -215,9 +215,13 @@ function renderMarkers() {
     // 純粹「24 小時開放」沒有限制可以提醒，地圖標籤上不用顯示時段
     const noRealRestriction = spot.hours && hasNoRealTimeRestriction(spot.hours);
     if (spot.hours && !noRealRestriction) {
+      // 24小時開放＋括號例外時，只顯示例外本身（例如「社務所
+      // 8:30–16:30」），不重複講沒有限制的「24小時開放」
+      const isAllDay = /24\s*小時|24\s*小时/.test(spot.hours);
+      const restrictionNote = isAllDay ? extractRestrictionNote(spot.hours) : null;
       const hrs = document.createElement('span');
       hrs.className = 'marker-hours' + (spot.booking ? ' marker-hours-booking' : '');
-      hrs.textContent = spot.hours.split('（')[0];   // 標籤只放主要時段，細節在介紹裡
+      hrs.textContent = restrictionNote || spot.hours.split('（')[0];   // 標籤只放主要時段，細節在介紹裡
       label.appendChild(hrs);
     }
     // 時段沒有限制（沒顯示，或根本沒收錄時段）但仍要事前預約時，
@@ -506,6 +510,15 @@ function extractBookingTimeRange(note) {
   return m ? m[0] : null;
 }
 
+// 括號裡才是真正的例外（例如伏見稻荷大社的「社務所 8:30–16:30」、
+// 京都車站的「各店家營業時間不一」）。括號外的「24小時開放」本身
+// 不是限制，講出來只會讓人分心，紫牛法則：只講有限制的部分，
+// 沒有限制的事情不用提。
+function extractRestrictionNote(hours) {
+  const m = (hours || '').match(/[（(]([^）)]+)[）)]/);
+  return m ? m[1] : null;
+}
+
 // 營業／開放時間。沒有資料時要明講，不要讓人誤以為「沒寫＝隨時可以去」
 function buildHours(spot) {
   // 純粹「24 小時開放」沒有任何限制，不需要標示營業時間
@@ -514,7 +527,10 @@ function buildHours(spot) {
   // 黃色提醒，兩個警示互相呼應
   const needsBooking = spot.booking ? ' detail-hours-booking' : '';
   if (spot.hours) {
-    return `<div class="detail-hours${needsBooking}">🕘 ${spot.hours}
+    // 24小時開放＋括號例外時，只顯示例外本身，不重複講「24小時開放」
+    const isAllDay = /24\s*小時|24\s*小时/.test(spot.hours);
+    const displayHours = (isAllDay && extractRestrictionNote(spot.hours)) || spot.hours;
+    return `<div class="detail-hours${needsBooking}">🕘 ${displayHours}
       <span class="hours-note">參考時間，出發前請以官網或下方 Google 地圖確認</span></div>`;
   }
   return `<div class="detail-hours detail-hours-none">🕘 營業時間未收錄
