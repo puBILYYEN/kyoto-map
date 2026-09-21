@@ -377,8 +377,8 @@ function showDetail(spotId) {
     </div>
     <div class="detail-area">${spot.area}</div>
     ${buildHours(spot)}
-    <div class="detail-desc">${spot.desc}</div>
     ${buildBookingBox(spot)}
+    <div class="detail-desc">${spot.desc}</div>
     <a class="detail-link" href="${buildPlaceUrl(spot)}" target="_blank" rel="noopener noreferrer">📍 在 Google 地圖上看（照片・評價・營業時間）</a>
   `;
   if (mapIsVisible()) {
@@ -525,6 +525,11 @@ function extractRestrictionNote(hours) {
 function buildHours(spot) {
   // 純粹「24 小時開放」沒有任何限制，不需要標示營業時間
   if (spot.hours && hasNoRealTimeRestriction(spot.hours)) return '';
+  // 需要預約／申請但沒收錄時段的景點（例如西芳寺），不要顯示
+  // 「營業時間未收錄」——那是在講沒有限制的事，而且會把注意力
+  // 導去查營業時間，但這種地方真正的限制是「不事前申請就進不去」。
+  // 黃色的預約提醒才是重點，要預約什麼則寫在介紹裡。
+  if (!spot.hours && spot.booking) return '';
   // 需要預約／申請的景點，如果同時有真正的限制時段，時段也一起用
   // 黃色提醒，兩個警示互相呼應
   const needsBooking = spot.booking ? ' detail-hours-booking' : '';
