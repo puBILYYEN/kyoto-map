@@ -73,7 +73,7 @@ const SHARE_CONFIG = {
 // 線上導遊設定。endpoint 留空時，按鈕會顯示「尚未設定」而不會壞掉。
 // 後端部署到 Render 之後，把網址填進來即可（結尾不要加斜線）。
 const AI_CONFIG = {
-  endpoint: '',   // 例如 'https://kyoto-ai.onrender.com'
+  endpoint: 'https://kyoto-ai.onrender.com',   // Render 上的導遊後端
   greeting: '我是你們的京都線上導遊。我看得到你目前在地圖上選了哪些景點，可以直接問我這些地方的特色、順路怎麼走、或是現場遇到的任何問題。',
   suggestions: [
     '幫我把選的景點排成順路的順序',
