@@ -46,6 +46,33 @@ if (map) {
 
   // 連線圖層屬於地圖樣式的一部分，這個才真的要等 load
   map.on('load', () => {
+    // 京都府府界。先加，讓它墊在路線連線底下，不要蓋住行程
+    if (typeof KYOTO_BORDER !== 'undefined') {
+      map.addSource('kyotoBorder', { type: 'geojson', data: KYOTO_BORDER });
+      // 淡淡的底色只在拉遠時出現，讓人看出「京都府其實這麼大」；
+      // 放大到市區規劃行程時完全淡出，不然整個畫面都會被染紅
+      map.addLayer({
+        id: 'kyotoBorderFill',
+        type: 'fill',
+        source: 'kyotoBorder',
+        paint: {
+          'fill-color': '#d92b2b',
+          'fill-opacity': ['interpolate', ['linear'], ['zoom'], 6, 0.10, 10, 0.06, 12.5, 0],
+        },
+      });
+      map.addLayer({
+        id: 'kyotoBorderLine',
+        type: 'line',
+        source: 'kyotoBorder',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': '#d92b2b',
+          'line-opacity': 0.85,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 6, 1.2, 10, 2.2, 14, 3],
+        },
+      });
+    }
+
     map.addSource('routeLine', {
       type: 'geojson',
       data: { type: 'FeatureCollection', features: [] },
