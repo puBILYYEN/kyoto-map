@@ -360,8 +360,9 @@ function moveSelected(index, delta) {
 }
 
 // 單一景點的 Google 地圖頁面（可看照片、評價、營業時間）
+// 有填 address 就用地址查，比用概略座標精準
 function buildPlaceUrl(spot) {
-  const query = encodeURIComponent(`${spot.name} ${spot.lat},${spot.lng}`);
+  const query = encodeURIComponent(spot.address || `${spot.name} ${spot.lat},${spot.lng}`);
   return `https://www.google.com/maps/search/?api=1&query=${query}`;
 }
 
