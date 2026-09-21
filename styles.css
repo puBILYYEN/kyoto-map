@@ -344,6 +344,13 @@ html, body {
   background: #2b2620;
   color: var(--highlight-yellow);
 }
+/* 時段是 24 小時開放（時段本身沒有限制），但仍要事前預約時，
+   時段文字維持一般樣式，改用這一行單獨提醒「要預約」 */
+.marker-booking-note {
+  font-weight: 700;
+  background: #2b2620;
+  color: var(--highlight-yellow);
+}
 /* 放大到一定程度才全部顯示 */
 #map.show-labels .marker-label { display: block; }
 /* 勾選的景點不管縮放到哪都要看得到名字 */

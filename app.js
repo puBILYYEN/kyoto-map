@@ -213,10 +213,19 @@ function renderMarkers() {
     label.className = 'marker-label marker-label-' + (spot.labelSide || 'below');
     label.textContent = spot.name;
     if (spot.hours) {
+      const unrestricted = hoursAreUnrestricted(spot.hours);
       const hrs = document.createElement('span');
-      hrs.className = 'marker-hours' + (spot.booking ? ' marker-hours-booking' : '');
+      hrs.className = 'marker-hours' + (spot.booking && !unrestricted ? ' marker-hours-booking' : '');
       hrs.textContent = spot.hours.split('（')[0];   // 標籤只放主要時段，細節在介紹裡
       label.appendChild(hrs);
+      // 時段是 24 小時開放，時段文字不塗黃；但要事前預約的話，
+      // 這件事本身還是要讓人一眼看到，所以另外加一行黃字提醒
+      if (spot.booking && unrestricted) {
+        const note = document.createElement('span');
+        note.className = 'marker-hours marker-booking-note';
+        note.textContent = '⚠ 需事前預約';
+        label.appendChild(note);
+      }
     }
     el.appendChild(label);
 
@@ -471,12 +480,19 @@ function moveSelected(index, delta) {
   updateMarkerVisibility();
 }
 
+// 時段本身寫著「24 小時開放」之類的字樣，代表營業時間沒有限制——
+// 這種情況下就算要事前預約，真正該提醒的是「要預約」，不是時段本身，
+// 時段文字就不該被塗成黃色（塗了反而讓人誤以為時段有限制）。
+function hoursAreUnrestricted(hours) {
+  return /24\s*小時|24\s*小时/.test(hours || '');
+}
+
 // 營業／開放時間。沒有資料時要明講，不要讓人誤以為「沒寫＝隨時可以去」
 function buildHours(spot) {
-  // 需要預約／申請的景點，連營業時間也一起用黃色提醒——
-  // 兩個警示互相呼應，讓人一眼就知道「這個地方要多留意」。
-  // 不需要預約的景點維持一般淺色樣式。
-  const needsBooking = spot.booking ? ' detail-hours-booking' : '';
+  // 需要預約／申請的景點，連營業時間也一起用黃色提醒，兩個警示互相呼應——
+  // 但如果時段本身是 24 小時開放，時段不是限制所在，就不塗黃，
+  // 底下緊接著的 booking 方塊（黃色標籤＋說明）已經足夠提醒要預約。
+  const needsBooking = spot.booking && !hoursAreUnrestricted(spot.hours) ? ' detail-hours-booking' : '';
   if (spot.hours) {
     return `<div class="detail-hours${needsBooking}">🕘 ${spot.hours}
       <span class="hours-note">參考時間，出發前請以官網或下方 Google 地圖確認</span></div>`;
