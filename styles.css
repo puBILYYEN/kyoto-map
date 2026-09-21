@@ -528,9 +528,13 @@ html, body {
 
 /* ---------- 手機：清單／地圖／已選 三個畫面用底部導覽列切換 ---------- */
 @media (max-width: 860px) {
-  .topbar { padding: 9px 14px; }
-  .topbar h1 { font-size: 17px; }
-  .topbar .subtitle { font-size: 11.5px; }
+  /* 標題與按鈕各佔一整列，否則三顆按鈕會把標題擠成直排 */
+  .topbar { padding: 8px 12px; }
+  .topbar-row { flex-wrap: wrap; gap: 6px; }
+  .topbar h1 { flex: 1 1 100%; margin: 0; font-size: 16px; }
+  .topbar-actions { flex: 1 1 100%; gap: 6px; }
+  .topbar-actions button { flex: 1; }
+  .topbar .subtitle { display: none; }   /* 手機上把垂直空間留給清單 */
 
   /* 三個畫面重疊擺放，同一時間只顯示一個 */
   .main { position: relative; }
@@ -543,7 +547,14 @@ html, body {
     border-right: none;
   }
   /* 用 visibility 而不是 display:none —— 地圖容器要一直保有正確尺寸，
-     否則切回地圖時 MapLibre 會算不出寬高而顯示空白 */
+     否則切回地圖時 MapLibre 會算不出寬高而顯示空白。
+     但 MapLibre 的版權控制項會自己宣告 visibility:visible 而穿透出來，
+     所以再用 z-index 讓不透明的側欄實際蓋住它，雙重保險。 */
+  .sidebar, .map-area { z-index: 1; }
+  #app[data-mview="list"] .sidebar,
+  #app[data-mview="sel"] .sidebar,
+  #app[data-mview="map"] .map-area { z-index: 2; }
+
   #app[data-mview="list"] .map-area,
   #app[data-mview="sel"] .map-area,
   #app[data-mview="map"] .sidebar {
@@ -635,6 +646,6 @@ html, body {
 
 /* ---------- 小尺寸手機 ---------- */
 @media (max-width: 380px) {
-  .topbar .subtitle { display: none; }
   .mobile-nav button { font-size: 12px; }
+  .topbar-actions button { font-size: 11.5px; padding: 8px 6px; }
 }
