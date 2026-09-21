@@ -132,6 +132,53 @@ Android 的返回鍵會先關閉這個面板，不會一按就離開網頁。
    讓圖磚先存進快取
 2. 用 Android Chrome 開啟後，選單 →「加到主畫面」，之後可以像 App 一樣從桌面開啟
 
+## 共享清單（選用功能）
+
+勾好景點後，在「已選景點」區按「☁️ 分享這份清單」存成一份具名清單，
+其他人打開網頁按「📂 開啟共享清單」就能載入同一份。
+
+啟用方式：在 Firebase 主控台建立專案 → 加入「網頁應用程式」→ 複製 config，
+填進 `data.js` 的 `SHARE_CONFIG.firebaseConfig`：
+
+```js
+const SHARE_CONFIG = {
+  firebaseConfig: {
+    apiKey: '…', authDomain: '…', projectId: '…',
+    storageBucket: '…', messagingSenderId: '…', appId: '…',
+  },
+  tripId: 'kyoto2026',
+  maxLists: 30,
+};
+```
+
+> **這串 config 不是機密**，它本來就會出現在前端原始碼裡，
+> Firebase 的設計就是如此。安全性靠的是下面的安全規則。
+
+到 Firestore Database → 規則，貼上這段（把 `kyoto2026` 換成你的 `tripId`）：
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /trips/kyoto2026/lists/{listId} {
+      allow read, delete: if true;
+      allow create: if request.resource.data.keys().hasOnly(['name', 'spotIds', 'createdAt'])
+                    && request.resource.data.name is string
+                    && request.resource.data.name.size() <= 40
+                    && request.resource.data.spotIds is list
+                    && request.resource.data.spotIds.size() <= 60;
+    }
+  }
+}
+```
+
+這組規則把可寫入的範圍限制在那一個路徑，並檢查欄位與長度。
+
+> 老實說：因為沒有登入機制，任何知道網址的人理論上都能讀寫那份清單。
+> 對家庭旅遊的用途來說這樣夠了；若之後在意，可以改用 Firebase 匿名登入再加上規則。
+
+沒有填 config 的話，按鈕還是可以按，只會顯示「尚未設定」，不會讓網站壞掉。
+
 ## 線上導遊（選用功能）
 
 右上角的「🧭 線上導遊」會開啟聊天視窗，可以問景點特色、請它幫忙排順路的順序、

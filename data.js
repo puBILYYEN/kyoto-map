@@ -59,6 +59,17 @@ const TRIP_PREP = {
   ],
 };
 
+// 共享清單設定（Firebase Firestore）。
+// firebaseConfig 留空時，共享按鈕仍可按，只會說明尚未設定。
+//
+// 注意：Firebase 的 web config 不是機密，它本來就會出現在前端原始碼裡，
+// 安全性靠的是 Firestore 安全規則（見 README），不是把這串藏起來。
+const SHARE_CONFIG = {
+  firebaseConfig: null,   // 例如 { apiKey:'…', projectId:'…', appId:'…', … }
+  tripId: 'kyoto2026',    // 這趟旅程的代號，所有清單都存在這個代號底下
+  maxLists: 30,           // 最多保留幾份清單，避免無限增加
+};
+
 // 線上導遊設定。endpoint 留空時，按鈕會顯示「尚未設定」而不會壞掉。
 // 後端部署到 Render 之後，把網址填進來即可（結尾不要加斜線）。
 const AI_CONFIG = {

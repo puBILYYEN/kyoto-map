@@ -499,9 +499,13 @@ function closeDetailSheet(fromBackButton) {
 }
 
 window.addEventListener('popstate', () => {
-  // 聊天視窗開著就先關它，其次才是景點介紹面板
+  // 有浮出視窗就先關它，最後才是景點介紹面板
   if (!document.getElementById('chatOverlay').hidden) {
     closeChat(true);
+    return;
+  }
+  if (!document.getElementById('shareOverlay').hidden) {
+    closeShare(true);
     return;
   }
   closeDetailSheet(true);
@@ -523,6 +527,187 @@ mobileQuery.addEventListener('change', () => {
   setMobileView('list');
   requestAnimationFrame(() => map.resize());
 });
+
+// ---------- 共享清單（Firebase Firestore）----------
+// 用途：妹妹在她手機上勾好景點存成一份清單，姊姊打開就能載入同一份。
+// Firebase SDK 用動態 import 從 CDN 載入，只有真的要用時才下載，
+// 不影響首次開啟速度，也不會影響離線功能。
+
+const shareState = { db: null, loading: false };
+
+function shareEl(id) { return document.getElementById(id); }
+
+function openShare() { shareEl('shareOverlay').hidden = false; }
+
+function closeShare(fromBackButton) {
+  const overlay = shareEl('shareOverlay');
+  if (overlay.hidden) return;
+  overlay.hidden = true;
+  if (!fromBackButton && history.state && history.state.share) history.back();
+}
+
+function shareMessage(html) {
+  shareEl('shareBody').innerHTML = html;
+  openShare();
+  if (!history.state || !history.state.share) history.pushState({ share: true }, '');
+}
+
+// 需要時才連線，連好之後重複使用
+async function getFirestore() {
+  if (shareState.db) return shareState.db;
+  if (!SHARE_CONFIG.firebaseConfig) throw new Error('尚未設定 Firebase');
+  if (navigator.onLine === false) throw new Error('目前沒有網路');
+
+  const BASE = 'https://www.gstatic.com/firebasejs/10.14.1';
+  const [{ initializeApp }, firestore] = await Promise.all([
+    import(`${BASE}/firebase-app.js`),
+    import(`${BASE}/firebase-firestore.js`),
+  ]);
+  const app = initializeApp(SHARE_CONFIG.firebaseConfig);
+  shareState.db = { ...firestore, instance: firestore.getFirestore(app) };
+  return shareState.db;
+}
+
+function shareUnavailableMessage(err) {
+  if (!SHARE_CONFIG.firebaseConfig) {
+    return '共享清單還沒設定好（缺少 Firebase 設定），所以暫時不能用。' +
+      '你目前勾選的景點仍然正常，只是沒辦法傳給其他人。';
+  }
+  if (navigator.onLine === false) return '目前沒有網路，共享清單需要連線才能使用。';
+  return '連不上共享清單（' + err.message + '），請稍後再試。';
+}
+
+// 把目前勾選的景點存成一份清單
+async function saveSharedList() {
+  if (!selectedIds.length) {
+    shareMessage('<p class="share-note">還沒有勾選任何景點。先在清單上勾幾個，再回來分享。</p>');
+    return;
+  }
+
+  const name = prompt('幫這份清單取個名字（例如：妹妹想去的）', '');
+  if (name === null) return;
+  const listName = (name || '未命名清單').trim().slice(0, 40);
+
+  shareMessage('<p class="share-note">儲存中…</p>');
+  try {
+    const db = await getFirestore();
+    await db.addDoc(
+      db.collection(db.instance, 'trips', SHARE_CONFIG.tripId, 'lists'),
+      {
+        name: listName,
+        spotIds: selectedIds.slice(0, 60),
+        createdAt: db.serverTimestamp(),
+      }
+    );
+    await renderSharedLists('已儲存「' + listName + '」。其他人打開「共享清單」就看得到了。');
+  } catch (err) {
+    shareMessage('<p class="share-note">' + shareUnavailableMessage(err) + '</p>');
+  }
+}
+
+// 列出所有人存過的清單
+async function renderSharedLists(notice) {
+  shareMessage('<p class="share-note">讀取中…</p>');
+  try {
+    const db = await getFirestore();
+    const snap = await db.getDocs(db.query(
+      db.collection(db.instance, 'trips', SHARE_CONFIG.tripId, 'lists'),
+      db.orderBy('createdAt', 'desc'),
+      db.limit(SHARE_CONFIG.maxLists)
+    ));
+
+    const body = shareEl('shareBody');
+    body.innerHTML = '';
+    if (notice) {
+      const n = document.createElement('p');
+      n.className = 'share-note share-note-ok';
+      n.textContent = notice;
+      body.appendChild(n);
+    }
+    if (snap.empty) {
+      const p = document.createElement('p');
+      p.className = 'share-note';
+      p.textContent = '還沒有人分享清單。勾選幾個景點後按「分享這份清單」就會出現在這裡。';
+      body.appendChild(p);
+      return;
+    }
+
+    snap.forEach(docSnap => {
+      const data = docSnap.data();
+      const names = (data.spotIds || [])
+        .map(id => (SPOTS.find(s => s.id === id) || {}).name)
+        .filter(Boolean);
+
+      const row = document.createElement('div');
+      row.className = 'share-item';
+
+      const info = document.createElement('div');
+      info.className = 'share-item-info';
+      const title = document.createElement('div');
+      title.className = 'share-item-name';
+      title.textContent = `${data.name}（${names.length} 個景點）`;
+      const detail = document.createElement('div');
+      detail.className = 'share-item-spots';
+      detail.textContent = names.join('、') || '（清單中的景點已不存在）';
+      info.appendChild(title);
+      info.appendChild(detail);
+
+      const actions = document.createElement('div');
+      actions.className = 'share-item-actions';
+
+      const loadBtn = document.createElement('button');
+      loadBtn.type = 'button';
+      loadBtn.className = 'share-btn share-btn-primary';
+      loadBtn.textContent = '載入';
+      loadBtn.addEventListener('click', () => loadSharedList(data.spotIds || [], data.name));
+
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'share-btn';
+      delBtn.textContent = '刪除';
+      delBtn.addEventListener('click', async () => {
+        if (!confirm(`確定要刪除「${data.name}」嗎？其他人也會看不到。`)) return;
+        try {
+          const d = await getFirestore();
+          await d.deleteDoc(d.doc(d.instance, 'trips', SHARE_CONFIG.tripId, 'lists', docSnap.id));
+          await renderSharedLists('已刪除「' + data.name + '」。');
+        } catch (err) {
+          shareMessage('<p class="share-note">刪除失敗：' + err.message + '</p>');
+        }
+      });
+
+      actions.appendChild(loadBtn);
+      actions.appendChild(delBtn);
+      row.appendChild(info);
+      row.appendChild(actions);
+      body.appendChild(row);
+    });
+  } catch (err) {
+    shareMessage('<p class="share-note">' + shareUnavailableMessage(err) + '</p>');
+  }
+}
+
+// 把清單裡的景點套用到目前的勾選
+function loadSharedList(spotIds, name) {
+  const valid = spotIds.filter(id => SPOTS.some(s => s.id === id));
+  const missing = spotIds.length - valid.length;
+  selectedIds = valid;
+  renderList();
+  renderSelection();
+  updateMarkerVisibility();
+  fitToVisibleSpots();
+  closeShare();
+  if (missing > 0) {
+    alert(`已載入「${name}」，但其中 ${missing} 個景點已經不在資料裡，已略過。`);
+  }
+}
+
+shareEl('shareSaveBtn').addEventListener('click', saveSharedList);
+shareEl('shareOpenBtn').addEventListener('click', () => {
+  if (!history.state || !history.state.share) history.pushState({ share: true }, '');
+  renderSharedLists();
+});
+shareEl('shareClose').addEventListener('click', () => closeShare());
 
 // ---------- 離線支援 ----------
 // 註冊 Service Worker，讓網站在沒有網路時仍然打得開
