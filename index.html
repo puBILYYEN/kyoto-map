@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>京都行程景點地圖</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <h1>京都行程景點地圖</h1>
+      <p class="subtitle">依分類瀏覽 · 點景點看詳細介紹 · 勾選多個景點可開啟大眾運輸路線</p>
+    </header>
+
+    <div class="main">
+      <aside class="sidebar">
+        <div class="tabs" id="tabs"></div>
+        <div class="search-box">
+          <input type="text" id="searchInput" placeholder="搜尋景點名稱或地區…">
+        </div>
+        <div class="spot-list" id="spotList"></div>
+
+        <div class="selection-box" id="selectionBox">
+          <h3>已選景點 <span id="selCount">(0)</span></h3>
+          <ol id="selectedList"></ol>
+          <div id="routeButtons"></div>
+          <button id="clearSelection" class="clear-btn">清除選取</button>
+        </div>
+      </aside>
+
+      <main class="map-area">
+        <div id="map"></div>
+        <div class="detail-panel" id="detailPanel">
+          <div class="detail-placeholder">點選左側清單或地圖上的標記，查看景點詳細介紹</div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

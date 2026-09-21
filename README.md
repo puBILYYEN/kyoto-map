@@ -1,0 +1,83 @@
+# 京都行程景點地圖
+
+一個純靜態網頁（沒有後端、不用資料庫），用 MapLibre GL JS 顯示京都景點地圖，
+依「寺與神社 / 穿搭與藥妝 / 美景 / 精進料理」四大分類瀏覽，
+點景點看詳細介紹，勾選多個景點後可以一鍵開啟 Google 地圖的大眾運輸路線。
+
+## 檔案結構
+
+```
+kyoto-map/
+├── index.html   ← 網頁主體
+├── styles.css   ← 樣式
+├── app.js       ← 互動邏輯（地圖、清單、選取、路線連結）
+├── data.js      ← 景點資料庫（可自行增修）
+└── README.md    ← 這份說明
+```
+
+沒有任何 build 流程、沒有 package.json，純 HTML/CSS/JS，Vercel 會自動當成靜態網站部署。
+
+## 部署到 Vercel（三種方式擇一）
+
+### 方式一：Vercel 網站拖拉上傳（最簡單，不用裝任何東西）
+
+1. 到 https://vercel.com 註冊 / 登入帳號（可用 Email 或 GitHub 帳號登入）
+2. 進入 Dashboard，點右上角「Add New...」→「Project」
+3. 選擇畫面上「拖拉檔案上傳」的區域，把整個 `kyoto-map` 資料夾拖進去
+   （如果只能選檔案不能選資料夾，改用下面「方式二」）
+4. 按下 Deploy，等待約 10～20 秒，就會拿到一個 `https://xxxx.vercel.app` 的網址
+
+### 方式二：用 Vercel CLI（電腦上有 Node.js 的話）
+
+在終端機（Mac 用「終端機」App，Windows 用 PowerShell 或 cmd）裡執行：
+
+```bash
+# 1. 安裝 Vercel CLI（只需要做一次）
+npm install -g vercel
+
+# 2. 切換到這個資料夾
+cd 你解壓縮後的kyoto-map資料夾路徑
+
+# 3. 登入並部署
+vercel login
+vercel --prod
+```
+
+過程中它會問幾個問題，全部按 Enter 用預設值就可以。跑完之後終端機會顯示一個網址，
+那就是可以直接貼給家人的連結。
+
+### 方式三：透過 GitHub 匯入（適合之後還想常常修改內容）
+
+1. 把 `kyoto-map` 資料夾建立成一個新的 GitHub repository（可以用 GitHub Desktop 或網頁上傳）
+2. 到 https://vercel.com/new，選「Import Git Repository」，選剛剛那個 repo
+3. 其他設定都不用改，直接 Deploy
+4. 之後如果要修改景點資料，只要改 GitHub 上的 `data.js` 檔案，Vercel 會自動重新部署
+
+## 如何新增或修改景點
+
+打開 `data.js`，裡面是一個叫做 `SPOTS` 的陣列，每個景點長這樣：
+
+```js
+{ id:'t62', category:'temple', name:'新景點名稱', area:'所在區域',
+  lat:35.0000, lng:135.7500, desc:'這裡寫景點特色介紹文字。' }
+```
+
+- `id`：不能跟其他景點重複，temple 開頭用 t、shopping 用 s、scenic 用 v、shojin 用 j，數字接續下去即可
+- `category`：只能是 `temple`（寺與神社）、`shopping`（穿搭與藥妝）、`scenic`（美景）、`shojin`（精進料理）四選一
+- `lat` / `lng`：緯度／經度，可以到 Google 地圖上對著該地點按右鍵複製座標
+- `desc`：介紹文字，會顯示在下方詳細介紹欄
+
+存檔後重新部署（方式一、二要重新拖拉/執行一次；方式三只要 push 到 GitHub 就會自動更新）。
+
+## 使用說明（給你跟家人）
+
+- 左側可切換分類頁籤，或用搜尋框輸入關鍵字篩選景點
+- 點景點名稱或地圖上的圓點，下方會顯示該景點的詳細介紹
+- 勾選景點前面的checkbox可以多選，選了兩個以上，左下角會出現「開啟大眾運輸路線」的按鈕，
+  點下去會直接跳到 Google 地圖幫你算好公車/電車路線（依照你勾選的順序，一段一段串起來）
+- 目前收錄座標為概略位置，正式排行程或導航前，建議在 Google 地圖上再次確認實際地址與營業時間
+
+## 注意事項
+
+- 地圖圖磚使用 [OpenFreeMap](https://openfreemap.org/)（免費、不需申請 API 金鑰），正常使用不會產生費用
+- 這個網站部署在 Vercel 的免費方案內就綽綽有餘，不會有額外費用
