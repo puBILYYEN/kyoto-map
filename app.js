@@ -11,6 +11,11 @@ let pendingFit = false;   // 地圖在手機版被隱藏時無法計算範圍，
 let suppressNextMarkerClick = false;   // 長按問路觸發後，吃掉緊接著補上的那次 click
 let tempAskMarker = null;              // 問路時，沒對應到既有景點就在地圖上放的臨時圖釘
 
+// 「24 小時開放」「境內自由參拜」這類講法都代表本身沒有時間限制。
+// 一定要宣告在這裡：renderMarkers() 在檔案開頭就會執行，const 宣告在
+// 後面的話會踩到暫時性死區（TDZ），標記會整個畫不出來。
+const NO_LIMIT_RE = /24\s*小時|24\s*小时|自由參拜|自由参拝|境內自由|境内自由/;
+
 // ---------- 地圖初始化 ----------
 // 地圖是「加分功能」，不是必要功能。
 // 萬一地圖函式庫載入失敗（網路不穩、瀏覽器太舊、WebGL 不支援），
@@ -217,7 +222,7 @@ function renderMarkers() {
     if (hoursShown) {
       // 24小時開放＋括號例外時，只顯示例外本身（例如「社務所
       // 8:30–16:30」），不重複講沒有限制的「24小時開放」
-      const isAllDay = /24\s*小時|24\s*小时/.test(spot.hours);
+      const isAllDay = NO_LIMIT_RE.test(spot.hours);
       const restrictionNote = isAllDay ? extractRestrictionNote(spot.hours) : null;
       const hrs = document.createElement('span');
       hrs.className = 'marker-hours' + (spot.booking ? ' marker-hours-booking' : '');
@@ -498,8 +503,7 @@ function moveSelected(index, delta) {
 // 提到「24小時」就整段藏起來。
 function hasNoRealTimeRestriction(hours) {
   if (!hours) return false;
-  const isAllDay = /24\s*小時|24\s*小时/.test(hours);
-  if (!isAllDay) return false;
+  if (!NO_LIMIT_RE.test(hours)) return false;
   return !/[（(].*[）)]/.test(hours);   // 沒有括號附註 = 真的完全沒有限制
 }
 
@@ -535,7 +539,7 @@ function buildHours(spot) {
   const needsBooking = spot.booking ? ' detail-hours-booking' : '';
   if (spot.hours) {
     // 24小時開放＋括號例外時，只顯示例外本身，不重複講「24小時開放」
-    const isAllDay = /24\s*小時|24\s*小时/.test(spot.hours);
+    const isAllDay = NO_LIMIT_RE.test(spot.hours);
     const displayHours = (isAllDay && extractRestrictionNote(spot.hours)) || spot.hours;
     return `<div class="detail-hours${needsBooking}">🕘 ${displayHours}
       <span class="hours-note">參考時間，出發前請以官網或下方 Google 地圖確認</span></div>`;
