@@ -55,6 +55,7 @@
 
       <main class="map-area">
         <div id="map"></div>
+        <div class="map-hint" id="mapHint" hidden></div>
         <div class="detail-panel" id="detailPanel">
           <div class="detail-actions">
             <button type="button" class="detail-tomap" id="detailToMap">🗺 看地圖</button>
@@ -79,6 +80,16 @@
           <input type="text" id="chatText" placeholder="問我任何關於京都的事…" autocomplete="off">
           <button type="submit" id="chatSend">送出</button>
         </form>
+      </div>
+    </div>
+
+    <div class="ask-overlay" id="askOverlay" hidden>
+      <div class="ask-box">
+        <header class="ask-head">
+          <span class="ask-title">🗣️ 問路小工具</span>
+          <button type="button" id="askClose" aria-label="關閉">✕</button>
+        </header>
+        <div class="ask-body" id="askBody"></div>
       </div>
     </div>
 

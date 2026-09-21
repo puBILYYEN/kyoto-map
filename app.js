@@ -8,6 +8,8 @@ let activeSpotId = null;  // 目前顯示在下方詳細介紹的景點
 const markers = {};       // id -> maplibregl.Marker
 let mapLoaded = false;    // 地圖圖層載入完成後才能畫連線
 let pendingFit = false;   // 地圖在手機版被隱藏時無法計算範圍，先記下來等顯示時再做
+let suppressNextMarkerClick = false;   // 長按問路觸發後，吃掉緊接著補上的那次 click
+let tempAskMarker = null;              // 問路時，沒對應到既有景點就在地圖上放的臨時圖釘
 
 // ---------- 地圖初始化 ----------
 // 地圖是「加分功能」，不是必要功能。
@@ -68,10 +70,54 @@ if (map) {
   map.on('zoomend', syncLabels);
   syncLabels();
 
+  // 用 matchMedia 現查即可，這裡執行時 mobileQuery 變數還沒宣告（在檔案後段）
+  if (!window.matchMedia('(max-width: 860px)').matches) showLongPressHintOnce();
+
   // 底圖載不到不是世界末日：標記還在，位置關係還看得出來
   map.on('error', (e) => {
     console.warn('[地圖] 底圖載入問題：', e && e.error ? e.error.message : e);
     document.getElementById('map').classList.add('map-no-basemap');
+  });
+
+  // ---------- 長按地圖問路 ----------
+  // 長按地圖上任一點：有對應到目前看得見的景點就問「到 XX 怎麼去」，
+  // 沒有的話就問「到這裡怎麼去」，並在地圖上放一個臨時圖釘方便比給對方看。
+  let pressTimer = null;
+  let pressStart = null;
+  const LONG_PRESS_MS = 550;      // 按多久算長按
+  const MOVE_CANCEL_PX = 12;      // 手指移動超過這個距離，視為在滑地圖，取消長按
+
+  function clearPressTimer() {
+    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+    pressStart = null;
+  }
+
+  map.on('touchstart', (e) => {
+    // 兩指以上是縮放手勢，不要誤判成長按
+    if (e.originalEvent.touches && e.originalEvent.touches.length > 1) { clearPressTimer(); return; }
+    pressStart = { point: e.point, lngLat: e.lngLat };
+    pressTimer = setTimeout(() => {
+      suppressNextMarkerClick = true;
+      openAskDirections(pressStart.point, pressStart.lngLat);
+      pressTimer = null;
+    }, LONG_PRESS_MS);
+  });
+  map.on('touchmove', (e) => {
+    if (!pressStart) return;
+    const moved = Math.hypot(e.point.x - pressStart.point.x, e.point.y - pressStart.point.y);
+    if (moved > MOVE_CANCEL_PX) clearPressTimer();
+  });
+  map.on('touchend', () => {
+    clearPressTimer();
+    // 觸控結束後緊接著會補一次 click，稍等一下再解除抑制旗標
+    if (suppressNextMarkerClick) setTimeout(() => { suppressNextMarkerClick = false; }, 400);
+  });
+  map.on('touchcancel', clearPressTimer);
+
+  // 桌機用滑鼠測試：右鍵當作長按
+  map.on('contextmenu', (e) => {
+    e.originalEvent.preventDefault();
+    openAskDirections(e.point, e.lngLat);
   });
 }
 
@@ -175,6 +221,9 @@ function renderMarkers() {
     el.appendChild(label);
 
     el.addEventListener('click', () => {
+      // 剛觸發長按問路時，觸控結束通常還會補一個 click 事件，
+      // 這裡要吃掉那一次，不然詳細介紹會跟著問路小工具一起跳出來
+      if (suppressNextMarkerClick) { suppressNextMarkerClick = false; return; }
       showDetail(spot.id);
     });
 
@@ -549,6 +598,7 @@ function setMobileView(view) {
 
   // 地圖剛從隱藏切回顯示時要重算尺寸，否則會是一片空白
   if (view === 'map' && map) {
+    showLongPressHintOnce();
     requestAnimationFrame(() => {
       map.resize();
       const spot = SPOTS.find(s => s.id === activeSpotId);
@@ -583,6 +633,10 @@ window.addEventListener('popstate', () => {
   }
   if (!document.getElementById('shareOverlay').hidden) {
     closeShare(true);
+    return;
+  }
+  if (!document.getElementById('askOverlay').hidden) {
+    closeAskDirections(true);
     return;
   }
   closeDetailSheet(true);
@@ -907,6 +961,123 @@ function findRelevantSpots(question, limit, excludeIds) {
   // 只留下跟最高分同一個量級的，避免把勉強沾上邊的景點也塞給導遊
   const threshold = scored.length ? scored[0].score * 0.45 : 0;
   return scored.filter(r => r.score >= threshold).slice(0, limit).map(r => r.spot);
+}
+
+// ---------- 長按地圖問路 ----------
+
+// 名稱裡的「（住宿）」「（KIX）」這類備註不是地名本身，
+// 寫進日文問句或念出來時要先拿掉，不然日本人會聽得一頭霧水。
+function stripAnnotations(name) {
+  return name.replace(/[（(][^）)]*[）)]/g, '').trim();
+}
+
+// 在觸控點附近找一個目前看得見的景點（螢幕像素距離，不是地理距離，
+// 這樣不管縮放到哪一級，判定的「附近」範圍感覺起來都差不多）
+function findNearestVisibleSpot(point, maxPx) {
+  let best = null;
+  let bestDist = Infinity;
+  SPOTS.forEach(spot => {
+    const marker = markers[spot.id];
+    if (!marker) return;
+    if (marker.getElement().style.display === 'none') return;   // 目前篩選下看不到的不算
+    const screenPos = map.project([spot.lng, spot.lat]);
+    const dist = Math.hypot(screenPos.x - point.x, screenPos.y - point.y);
+    if (dist < bestDist) { bestDist = dist; best = spot; }
+  });
+  return (best && bestDist <= maxPx) ? best : null;
+}
+
+function buildAskPhrase(spot) {
+  if (spot) {
+    const name = stripAnnotations(spot.name);
+    return {
+      label: name,
+      zh: ASK_DIRECTIONS.zhTemplate.replace('{name}', name),
+      ja: ASK_DIRECTIONS.jaTemplate.replace('{name}', name),
+    };
+  }
+  return { label: '地圖上這個位置', zh: ASK_DIRECTIONS.zhGeneric, ja: ASK_DIRECTIONS.jaGeneric };
+}
+
+// 用手機內建的語音合成朗讀日文，這樣遇到日本人時按一下就等於幫忙開口問路，
+// 不用自己唸、也不用擔心發音不準
+function speakJapanese(text) {
+  if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+    alert('這個瀏覽器不支援語音朗讀，請直接把畫面給對方看這句日文。');
+    return;
+  }
+  speechSynthesis.cancel();   // 停掉上一次可能還沒播完的
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = 'ja-JP';
+  utter.rate = 0.9;   // 稍微放慢，對方比較聽得清楚
+
+  let spoken = false;
+  const doSpeak = () => {
+    if (spoken) return;
+    spoken = true;
+    const jaVoice = speechSynthesis.getVoices().find(v => v.lang && v.lang.toLowerCase().startsWith('ja'));
+    if (jaVoice) utter.voice = jaVoice;
+    speechSynthesis.speak(utter);
+  };
+
+  // 有些瀏覽器第一次呼叫時語音清單還是空的，要等 voiceschanged 事件才拿得到
+  if (speechSynthesis.getVoices().length) {
+    doSpeak();
+  } else {
+    speechSynthesis.addEventListener('voiceschanged', doSpeak, { once: true });
+    setTimeout(doSpeak, 400);   // 保險：萬一事件沒觸發，還是要播放（用瀏覽器預設語音）
+  }
+}
+
+function openAskDirections(point, lngLat) {
+  const spot = findNearestVisibleSpot(point, 28);
+  const phrase = buildAskPhrase(spot);
+
+  if (tempAskMarker) { tempAskMarker.remove(); tempAskMarker = null; }
+  if (!spot) {
+    // 沒對應到既有景點，放一個臨時圖釘，方便直接把手機畫面比給對方看「就是這裡」
+    const el = document.createElement('div');
+    el.className = 'ask-pin';
+    tempAskMarker = new maplibregl.Marker({ element: el }).setLngLat(lngLat).addTo(map);
+  }
+
+  document.getElementById('askBody').innerHTML = `
+    <div class="ask-target">📍 ${phrase.label}</div>
+    <div class="phrase-zh">${phrase.zh}</div>
+    <div class="phrase-ja phrase-ja-big">${phrase.ja}</div>
+    <button type="button" class="ask-play-btn" id="askPlayBtn">🔊 播放日語問路</button>
+    <div class="phrase-tip">${ASK_DIRECTIONS.tip}</div>
+  `;
+  document.getElementById('askPlayBtn').addEventListener('click', () => speakJapanese(phrase.ja));
+
+  document.getElementById('askOverlay').hidden = false;
+  history.pushState({ ask: true }, '');
+}
+
+function closeAskDirections(fromBackButton) {
+  const overlay = document.getElementById('askOverlay');
+  if (overlay.hidden) return;
+  overlay.hidden = true;
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
+  if (tempAskMarker) { tempAskMarker.remove(); tempAskMarker = null; }
+  if (!fromBackButton && history.state && history.state.ask) history.back();
+}
+
+document.getElementById('askClose').addEventListener('click', () => closeAskDirections());
+
+// 第一次使用才提示這個手勢，之後就不再顯示
+function showLongPressHintOnce() {
+  let seen = false;
+  try { seen = localStorage.getItem('kyotoMapAskHintSeen') === '1'; } catch { /* 私密瀏覽模式可能會擋 */ }
+  if (seen) return;
+  const hint = document.getElementById('mapHint');
+  if (!hint) return;
+  hint.textContent = ASK_DIRECTIONS.hint;
+  hint.hidden = false;
+  const hide = () => { hint.hidden = true; };
+  hint.addEventListener('click', hide, { once: true });
+  setTimeout(hide, 6000);
+  try { localStorage.setItem('kyotoMapAskHintSeen', '1'); } catch { /* 同上 */ }
 }
 
 // 把景點的實際資料整理成一行，讓導遊照我們的資料回答，而不是憑自己的記憶

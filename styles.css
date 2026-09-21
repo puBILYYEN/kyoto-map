@@ -268,7 +268,42 @@ html, body {
   flex-direction: column;
   min-width: 0;
 }
-#map { flex: 1; min-height: 0; position: relative; }
+#map {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  -webkit-touch-callout: none;   /* 長按問路時，避免部分 Android 瀏覽器跳出原生選單 */
+}
+
+/* 長按地圖問路的一次性提示 */
+.map-hint {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  max-width: 90%;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(43, 38, 32, 0.88);
+  color: #fdf6e9;
+  font-size: 12.5px;
+  line-height: 1.5;
+  text-align: center;
+  cursor: pointer;
+}
+.map-hint[hidden] { display: none; }
+
+/* 長按產生的臨時圖釘（沒對應到既有景點時使用） */
+.ask-pin {
+  width: 20px;
+  height: 20px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: var(--accent);
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
 /* 地圖標記的名稱標籤 */
 .marker-label {
   display: none;
@@ -572,6 +607,64 @@ html, body {
 .share-item-actions { display: flex; flex-shrink: 0; gap: 6px; }
 .share-item-actions .share-btn { flex: none; padding: 8px 12px; }
 
+/* 問路小工具 */
+.ask-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(20, 16, 12, 0.4);
+}
+.ask-overlay[hidden] { display: none; }
+.ask-box {
+  width: min(480px, 100%);
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+.ask-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  background: #fbf8f2;
+}
+.ask-title { font-size: 15px; font-weight: 700; }
+.ask-head button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 999px;
+  font-family: inherit;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.ask-body { padding: 16px; }
+.ask-target { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+.ask-play-btn {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 14px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ask-play-btn:hover { background: #9c3d24; }
+.ask-play-btn:active { transform: scale(0.98); }
+
 /* 線上導遊聊天視窗 */
 .chat-overlay {
   position: fixed;
@@ -795,6 +888,9 @@ html, body {
   .chat-head button { width: 40px; height: 40px; }
   .chat-chip { padding: 9px 13px; font-size: 13px; }
   .share-btn { padding: 11px 6px; font-size: 13px; }
+  .ask-head button { width: 40px; height: 40px; }
+  .ask-play-btn { padding: 16px; font-size: 16.5px; }
+  .map-hint { font-size: 12px; top: 6px; }
   .share-box { max-height: 88vh; }
   .share-item-actions .share-btn { padding: 11px 14px; }
   /* 標題列三顆按鈕在窄螢幕會擠，導遊鈕最重要，其餘縮字 */
