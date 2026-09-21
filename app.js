@@ -213,8 +213,8 @@ function renderMarkers() {
     label.className = 'marker-label marker-label-' + (spot.labelSide || 'below');
     label.textContent = spot.name;
     // 純粹「24 小時開放」沒有限制可以提醒，地圖標籤上不用顯示時段
-    const noRealRestriction = spot.hours && hasNoRealTimeRestriction(spot.hours);
-    if (spot.hours && !noRealRestriction) {
+    const hoursShown = spot.hours && !hasNoRealTimeRestriction(spot.hours);
+    if (hoursShown) {
       // 24小時開放＋括號例外時，只顯示例外本身（例如「社務所
       // 8:30–16:30」），不重複講沒有限制的「24小時開放」
       const isAllDay = /24\s*小時|24\s*小时/.test(spot.hours);
@@ -224,15 +224,17 @@ function renderMarkers() {
       hrs.textContent = restrictionNote || spot.hours.split('（')[0];   // 標籤只放主要時段，細節在介紹裡
       label.appendChild(hrs);
     }
-    // 時段沒有限制（沒顯示，或根本沒收錄時段）但仍要事前預約時，
-    // 這件事本身還是要讓人一眼看到，另外加一行黃字提醒
-    if (spot.booking && noRealRestriction) {
-      // 場地本身沒有限制，但要預約的項目自己有時段的話，把時段也
-      // 一併標出來，不然只寫「需事前預約」看不出什麼時候要去
+    // 沒有時段可以標（沒收錄，或時段本身沒有限制）但要事前預約時，
+    // 這件事更要讓人一眼看到，另外加一行黃字提醒。
+    // 要預約的景點幾乎都沒有固定營業時間（時段是預約時才決定的），
+    // 所以提醒絕對不能綁在「有沒有收錄時段」上，不然全部都不會顯示。
+    if (spot.booking && !hoursShown) {
+      // 要預約的項目自己有時段的話，把時段也一併標出來，
+      // 不然只寫「需事前預約」看不出什麼時候要去
       const itemTime = extractBookingTimeRange(spot.booking.note);
       const note = document.createElement('span');
       note.className = 'marker-hours marker-booking-note';
-      note.textContent = itemTime ? `⚠ 需事前預約 ${itemTime}` : '⚠ 需事前預約';
+      note.textContent = '⚠ ' + BOOKING_META[spot.booking.level].label + (itemTime ? ' ' + itemTime : '');
       label.appendChild(note);
     }
     el.appendChild(label);
