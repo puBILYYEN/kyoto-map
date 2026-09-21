@@ -914,7 +914,7 @@ function openChat() {
   if (!chatEl('chatMsgs').children.length) {
     addChatMessage('bot', AI_CONFIG.greeting);
     if (!AI_CONFIG.endpoint) {
-      addChatMessage('bot', '（目前還沒有設定導遊的後端網址，所以我還不能回答。設定好之後這裡就會正常運作。）', 'chat-msg-warn');
+      addChatMessage('bot', '（導遊還在準備中，目前還不能回答。）', 'chat-msg-warn');
     }
     renderChatSuggestions();
   }
@@ -939,12 +939,12 @@ async function sendToGuide(text) {
   renderChatSuggestions();
 
   if (!AI_CONFIG.endpoint) {
-    addChatMessage('bot', '導遊的後端還沒設定好，暫時無法回答。' + AI_CONFIG.offlineNote, 'chat-msg-warn');
+    addChatMessage('bot', guideErrorMessage('E2'), 'chat-msg-warn');
     return;
   }
 
   if (navigator.onLine === false) {
-    addChatMessage('bot', '手機目前沒有網路。' + AI_CONFIG.offlineNote, 'chat-msg-warn');
+    addChatMessage('bot', '手機目前沒有網路，導遊需要連線才能回答。' + AI_CONFIG.offlineNote, 'chat-msg-warn');
     return;
   }
 
@@ -968,7 +968,16 @@ async function sendToGuide(text) {
       thinking.textContent = '後端休眠中，正在喚醒…（最多約 60 秒，只有第一次會這麼久）';
       res = await postToGuide(payload, 70000);
     }
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    if (!res.ok) {
+      // 使用者只需要看到代號，詳細原因寫進主控台給開發者查
+      let detail = '';
+      try {
+        const body = await res.json();
+        if (body && body.error) detail = body.error;
+      } catch { /* 回應不是 JSON */ }
+      console.warn('[導遊] HTTP ' + res.status + (detail ? '：' + detail : ''));
+      throw Object.assign(new Error('guide-http'), { code: 'E' + res.status });
+    }
     const data = await res.json();
     const answer = (data && data.answer) ? data.answer : '導遊沒有回覆內容，請再問一次。';
     thinking.remove();
@@ -976,14 +985,21 @@ async function sendToGuide(text) {
     chatState.history.push({ q: question, a: answer });
   } catch (err) {
     thinking.remove();
-    const reason = err.name === 'AbortError' ? '等太久沒有回應' : err.message;
-    addChatMessage('bot',
-      '連不上導遊（' + reason + '）。請再按一次送出試試看。' + AI_CONFIG.offlineNote,
-      'chat-msg-warn');
+    console.warn('[導遊] 失敗：', err);
+    const code = err.code || (err.name === 'AbortError' ? 'E4' : 'E3');
+    addChatMessage('bot', guideErrorMessage(code), 'chat-msg-warn');
   } finally {
     chatState.busy = false;
     chatEl('chatSend').disabled = false;
   }
+}
+
+// 家人看到的只有一句人話加一個代號；代號是給開發者對照用的
+//   E1  沒有網路      E2  還沒設定導遊後端
+//   E3  連不上後端    E4  等太久沒有回應
+//   E4xx / E5xx  後端回傳的 HTTP 狀態（例如 E502 = 後端連不到 AI 供應商）
+function guideErrorMessage(code) {
+  return `導遊現在沒辦法回答，等一下再試試看。（代號 ${code}）`;
 }
 
 // 帶逾時的請求，避免手機訊號差時一直轉圈
