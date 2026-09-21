@@ -10,7 +10,7 @@
 //
 // 導遊的 API 請求一律不快取，離線時就是不能用，這符合預期。
 
-const VERSION = 'v13';
+const VERSION = 'v23';
 const STATIC_CACHE = `kyoto-static-${VERSION}`;
 const TILE_CACHE = 'kyoto-tiles';
 const TILE_LIMIT = 600;          // 圖磚最多留幾張，避免把手機空間吃光
@@ -24,8 +24,8 @@ const CORE = [
   './app.js',
   './data.js',
   './manifest.json',
-  'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css',
-  'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js',
+  './vendor/maplibre-gl.css',
+  './vendor/maplibre-gl.js',
 ];
 
 self.addEventListener('install', (event) => {
@@ -107,13 +107,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 地圖函式庫：網址有版號，內容永遠不變，快取優先
-  if (url.hostname === 'unpkg.com') {
+  // 地圖函式庫放在自己的 vendor/，內容不會變，快取優先（省下每次的網路往返）
+  if (url.origin === self.location.origin && url.pathname.includes('/vendor/')) {
     event.respondWith(cacheFirst(request, STATIC_CACHE).catch(() => Response.error()));
     return;
   }
 
-  // 自己的檔案：網路優先，離線時退回快取
+  // 自己的其他檔案：網路優先，離線時退回快取
   if (url.origin === self.location.origin) {
     event.respondWith(networkFirst(request));
   }

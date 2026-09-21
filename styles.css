@@ -260,7 +260,36 @@ html, body {
   flex-direction: column;
   min-width: 0;
 }
-#map { flex: 1; min-height: 0; }
+#map { flex: 1; min-height: 0; position: relative; }
+/* 底圖載不到時，仍然看得到景點標記的相對位置 */
+#map.map-no-basemap { background: #eae6dc; }
+#map.map-no-basemap::before {
+  content: "底圖載入中或連線不穩，仍可看到景點位置";
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(43, 38, 32, 0.78);
+  color: #fdf6e9;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.map-unavailable {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  padding: 24px;
+  background: #f3efe6;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.8;
+  text-align: center;
+}
 
 .detail-panel {
   flex-shrink: 0;

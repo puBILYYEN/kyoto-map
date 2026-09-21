@@ -10,38 +10,62 @@ let mapLoaded = false;    // 地圖圖層載入完成後才能畫連線
 let pendingFit = false;   // 地圖在手機版被隱藏時無法計算範圍，先記下來等顯示時再做
 
 // ---------- 地圖初始化 ----------
-const map = new maplibregl.Map({
-  container: 'map',
-  style: 'https://tiles.openfreemap.org/styles/liberty', // 免費、不需API金鑰的地圖圖磚
-  center: [135.7600, 35.0100],
-  zoom: 11.2,
-});
-map.addControl(new maplibregl.NavigationControl(), 'top-right');
+// 地圖是「加分功能」，不是必要功能。
+// 萬一地圖函式庫載入失敗（網路不穩、瀏覽器太舊、WebGL 不支援），
+// 景點清單、日語小抄、行前準備這些救命的東西仍然必須照常運作，
+// 所以整段包在 try 裡，失敗就只是沒有地圖而已。
+let map = null;
 
-map.on('load', () => {
-  // 勾選景點之間的虛線連線（依勾選順序串起來）
-  map.addSource('routeLine', {
-    type: 'geojson',
-    data: { type: 'FeatureCollection', features: [] },
+try {
+  if (typeof maplibregl === 'undefined') throw new Error('地圖函式庫未載入');
+  map = new maplibregl.Map({
+    container: 'map',
+    style: 'https://tiles.openfreemap.org/styles/liberty', // 免費、不需API金鑰的地圖圖磚
+    center: [135.7600, 35.0100],
+    zoom: 11.2,
   });
-  map.addLayer({
-    id: 'routeLine',
-    type: 'line',
-    source: 'routeLine',
-    layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: {
-      'line-color': '#2b2620',
-      'line-width': 2.5,
-      'line-opacity': 0.7,
-      'line-dasharray': [2, 1.6],
-    },
-  });
-  mapLoaded = true;
+  map.addControl(new maplibregl.NavigationControl(), 'top-right');
+} catch (err) {
+  console.warn('[地圖] 無法初始化，其餘功能不受影響：', err);
+  map = null;
+}
 
+if (map) {
+  // 景點標記是 DOM 元素，不需要等底圖樣式下載完成。
+  // 以前把它放在 load 事件裡，結果樣式一載不到（網路不穩、圖磚伺服器掛了）
+  // 就連一個標記都不會出現。現在立刻畫，底圖有沒有來都不影響。
   renderMarkers();
   fitToVisibleSpots();
-  updateRouteLine();
-});
+
+  // 連線圖層屬於地圖樣式的一部分，這個才真的要等 load
+  map.on('load', () => {
+    map.addSource('routeLine', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    });
+    map.addLayer({
+      id: 'routeLine',
+      type: 'line',
+      source: 'routeLine',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: {
+        'line-color': '#2b2620',
+        'line-width': 2.5,
+        'line-opacity': 0.7,
+        'line-dasharray': [2, 1.6],
+      },
+    });
+    mapLoaded = true;
+    updateRouteLine();
+    document.getElementById('map').classList.remove('map-no-basemap');
+  });
+
+  // 底圖載不到不是世界末日：標記還在，位置關係還看得出來
+  map.on('error', (e) => {
+    console.warn('[地圖] 底圖載入問題：', e && e.error ? e.error.message : e);
+    document.getElementById('map').classList.add('map-no-basemap');
+  });
+}
 
 // ---------- 工具 ----------
 function getVisibleSpots() {
@@ -73,7 +97,7 @@ function formatDistance(km) {
 
 // 依目前勾選順序，在地圖上畫出連線
 function updateRouteLine() {
-  if (!mapLoaded) return;
+  if (!map || !mapLoaded) return;
   const coords = selectedIds
     .map(id => SPOTS.find(s => s.id === id))
     .filter(Boolean)
@@ -88,6 +112,7 @@ function updateRouteLine() {
 
 // 手機版一次只顯示一個畫面，地圖被隱藏時容器寬高是 0，不能做範圍／飛行計算
 function mapIsVisible() {
+  if (!map) return false;
   const c = map.getContainer();
   return c.offsetWidth > 0 && c.offsetHeight > 0;
 }
@@ -104,6 +129,7 @@ function fitToVisibleSpots() {
 
 // ---------- 標記(marker) ----------
 function renderMarkers() {
+  if (!map) return;
   // 清除既有 marker
   Object.values(markers).forEach(m => m.remove());
   for (const k in markers) delete markers[k];
@@ -464,6 +490,17 @@ document.getElementById('clearSelection').addEventListener('click', () => {
 const mobileQuery = window.matchMedia('(max-width: 860px)');
 const appEl = document.getElementById('app');
 
+// 地圖不能用時，在地圖區塊說明清楚，不要只給使用者一片空白
+if (!map) {
+  const box = document.getElementById('map');
+  box.innerHTML =
+    '<div class="map-unavailable">' +
+    '🗺️ 地圖目前無法顯示<br><br>' +
+    '景點清單、日語小抄、行前準備都還正常，可以照常使用。<br>' +
+    '換個網路環境重新整理，地圖通常就會回來。' +
+    '</div>';
+}
+
 function setMobileView(view) {
   appEl.dataset.mview = view;
   document.querySelectorAll('.mobile-nav button').forEach(btn => {
@@ -471,7 +508,7 @@ function setMobileView(view) {
   });
 
   // 地圖剛從隱藏切回顯示時要重算尺寸，否則會是一片空白
-  if (view === 'map') {
+  if (view === 'map' && map) {
     requestAnimationFrame(() => {
       map.resize();
       const spot = SPOTS.find(s => s.id === activeSpotId);
@@ -525,7 +562,7 @@ mobileQuery.addEventListener('change', () => {
   closeDetailSheet();
   // 桌機版不需要浮出面板的瀏覽紀錄
   setMobileView('list');
-  requestAnimationFrame(() => map.resize());
+  if (map) requestAnimationFrame(() => map.resize());
 });
 
 // ---------- 共享清單（Firebase Firestore）----------
