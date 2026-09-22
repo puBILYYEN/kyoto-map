@@ -215,7 +215,7 @@ service cloud.firestore {
                     && request.resource.data.spotIds.size() <= 60;
     }
     match /trips/kyoto2026/members/{memberId} {
-      allow read: if true;
+      allow read, delete: if true;
       allow create, update: if request.resource.data.keys().hasOnly(['name', 'color', 'spotIds', 'updatedAt'])
                     && request.resource.data.name is string
                     && request.resource.data.name.size() <= 10
@@ -253,6 +253,10 @@ service cloud.firestore {
 - 這個功能跟上面「用連結分享」是各自獨立的兩套機制：連結分享是傳一份
   固定版本給某個人；跳棋是設定一次名字之後全自動、即時同步，兩者不會
   互相干擾，可以同時使用。
+- **改名字不會刪掉原本那個名字的資料**——改名字視為換成另一個獨立身份，
+  舊名字會留在原地、不再更新，其他家人還是看得到它（停在改名那一刻的
+  選點）。如果是測試用的臨時名字，設定好名字那一列旁邊有「🗑️」按鈕，
+  可以手動刪除自己這個身份；正式使用的名字不用刻意去刪。
 
 ### 共同選點
 

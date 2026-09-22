@@ -1055,6 +1055,27 @@ async function setupMemberIdentity() {
   startMembersListener();
 }
 
+// 手動刪除自己這個跳棋身份（例如測試用的臨時名字），不會影響其他人的資料。
+// 不會自動觸發——改名字只是換成另一個獨立身份，舊名字不會自動消失，
+// 要刪除的話一定要按這個按鈕，自己確認才會刪。
+async function deleteMemberIdentity() {
+  if (!memberIdentity) return;
+  if (!confirm(`確定要刪除跳棋身份「${memberIdentity.name}」嗎？其他家人會看不到這個身份的選點。`)) return;
+
+  try {
+    const db = await getFirestore();
+    await db.deleteDoc(db.doc(db.instance, 'trips', SHARE_CONFIG.tripId, 'members', memberIdentity.id));
+  } catch (err) {
+    console.warn('[跳棋] 刪除失敗：', err);
+    alert('刪除失敗，請確認網路連線後再試一次。');
+    return;
+  }
+
+  memberIdentity = null;
+  saveMemberIdentity();
+  renderMemberBox();
+}
+
 function renderMemberBox() {
   const me = shareEl('memberMe');
   if (!me) return;
@@ -1087,9 +1108,20 @@ function renderMemberBox() {
   renameBtn.textContent = '✏️';
   renameBtn.title = '改名字';
   renameBtn.addEventListener('click', setupMemberIdentity);
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.type = 'button';
+  deleteBtn.className = 'share-btn';
+  deleteBtn.style.flex = 'none';
+  deleteBtn.style.padding = '4px 8px';
+  deleteBtn.textContent = '🗑️';
+  deleteBtn.title = '刪除這個跳棋身份';
+  deleteBtn.addEventListener('click', deleteMemberIdentity);
+
   tag.appendChild(dot);
   tag.appendChild(label);
   tag.appendChild(renameBtn);
+  tag.appendChild(deleteBtn);
   me.appendChild(tag);
 
   const colors = document.createElement('div');
@@ -1234,7 +1266,7 @@ async function startMembersListener() {
       (snap) => {
         const next = {};
         snap.forEach(docSnap => {
-          if (docSnap.id === memberIdentity.id) return;   // 自己已經用原本的圓點+號碼顯示，不用重複疊一次
+          if (memberIdentity && docSnap.id === memberIdentity.id) return;   // 自己已經用原本的圓點+號碼顯示，不用重複疊一次
           next[docSnap.id] = docSnap.data();
         });
         othersState = next;
