@@ -138,9 +138,11 @@ if (map) {
       source: 'routeLine',
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: {
-        'line-color': '#2b2620',
+        // 每個人的路線用自己的跳棋顏色畫（沒設定跳棋的話用預設深色），
+        // 顏色存在 GeoJSON feature 的 properties.color 裡，見 updateRouteLine()
+        'line-color': ['get', 'color'],
         'line-width': 2.5,
-        'line-opacity': 0.7,
+        'line-opacity': 0.75,
         'line-dasharray': [2, 1.6],
       },
     });
@@ -236,19 +238,77 @@ function formatDistance(km) {
   return km < 1 ? `${Math.round(km * 1000)} 公尺` : `${km.toFixed(1)} 公里`;
 }
 
-// 依目前勾選順序，在地圖上畫出連線
-function updateRouteLine() {
-  if (!map || !mapLoaded) return;
-  const coords = selectedIds
+// 路線改成貼著馬路走的彎曲線，不是直線——用免費、不需要金鑰的 OSRM
+// 路線規劃服務（走路路徑），求的是「看得出真的怎麼走」，不是精確的
+// 大眾運輸轉乘（那個要付費的 API 才做得到，見 README 的說明）。
+// 每個人算過的路線會快取起來，順序沒變就不用重打一次。
+const ROUTE_COLOR_DEFAULT = '#2b2620';   // 沒設定跳棋的自己，維持原本的深色
+const routeCache = {};                   // key: 顏色+景點id序列 -> 路線座標陣列
+let routeUpdateToken = 0;                // 避免舊的非同步結果蓋掉新的
+
+async function fetchRoadRoute(coords) {
+  const key = coords.map(c => c.join(',')).join(';');
+  if (routeCache[key]) return routeCache[key];
+  const query = coords.map(([lng, lat]) => `${lng},${lat}`).join(';');
+  const url = `https://router.project-osrm.org/route/v1/foot/${query}?overview=full&geometries=geojson`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6000);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) throw new Error('OSRM ' + res.status);
+    const data = await res.json();
+    const line = data && data.routes && data.routes[0] && data.routes[0].geometry;
+    if (!line || line.type !== 'LineString') throw new Error('OSRM 回傳格式不對');
+    routeCache[key] = line.coordinates;
+    return line.coordinates;
+  } catch (err) {
+    // 連不上路線規劃服務（離線、服務忙線）就沒關係，外層會自動退回直線
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function spotCoords(ids) {
+  return ids
     .map(id => SPOTS.find(s => s.id === id))
     .filter(Boolean)
     .map(s => [s.lng, s.lat]);
-  map.getSource('routeLine').setData({
-    type: 'FeatureCollection',
-    features: coords.length >= 2
-      ? [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } }]
-      : [],
+}
+
+// 依目前勾選順序，在地圖上畫出連線——自己跟每個有設定跳棋的家人，
+// 各自用自己的顏色各畫一條，貼著馬路走
+async function updateRouteLine() {
+  if (!map || !mapLoaded) return;
+  const token = ++routeUpdateToken;
+
+  const people = [{ key: 'self', color: memberIdentity ? memberIdentity.color : ROUTE_COLOR_DEFAULT, ids: selectedIds }];
+  Object.entries(othersState).forEach(([id, m]) => {
+    if (Array.isArray(m.spotIds) && m.spotIds.length >= 2) people.push({ key: id, color: m.color, ids: m.spotIds });
   });
+
+  // key -> 目前這條線用的座標，先全部墊上直線，路線規劃回來後才逐一換成彎曲線，
+  // 不會讓人在等待的那一兩秒內完全看不到線
+  const lineByKey = {};
+  people.forEach(person => {
+    const coords = spotCoords(person.ids);
+    if (coords.length >= 2) lineByKey[person.key] = coords;
+  });
+
+  const buildFeatures = () => people
+    .filter(p => lineByKey[p.key])
+    .map(p => ({ type: 'Feature', properties: { color: p.color }, geometry: { type: 'LineString', coordinates: lineByKey[p.key] } }));
+
+  map.getSource('routeLine').setData({ type: 'FeatureCollection', features: buildFeatures() });
+
+  // 逐一去要貼著馬路走的版本，哪個先查到就先換上去，互不影響
+  await Promise.all(people.map(async (person) => {
+    if (!lineByKey[person.key]) return;
+    const road = await fetchRoadRoute(spotCoords(person.ids));
+    if (!road || token !== routeUpdateToken) return;   // 沒查到就維持直線；查詢途中又有新變動就放棄這次結果
+    lineByKey[person.key] = road;
+    map.getSource('routeLine').setData({ type: 'FeatureCollection', features: buildFeatures() });
+  }));
 }
 
 // 手機版一次只顯示一個畫面，地圖被隱藏時容器寬高是 0，不能做範圍／飛行計算
@@ -1273,6 +1333,7 @@ async function startMembersListener() {
         renderOthersList();
         renderMemberPawns();
         renderJointList();
+        updateRouteLine();
       },
       (err) => console.warn('[跳棋] 即時同步中斷：', err)
     );
