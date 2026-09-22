@@ -68,8 +68,17 @@ const TRIP_PREP = {
 // 注意：Firebase 的 web config 不是機密，它本來就會出現在前端原始碼裡，
 // 安全性靠的是 Firestore 安全規則（見 README），不是把這串藏起來。
 const SHARE_CONFIG = {
-  firebaseConfig: null,   // 例如 { apiKey:'…', projectId:'…', appId:'…', … }
+  // 專案 kyoto-trip-map（kyoto-trip-map-a6635），Firestore 位置 asia-northeast1（東京）
+  firebaseConfig: {
+    apiKey: 'AIzaSyBwONVB9_Ykv5DCgf_5NOeYuBqmOPeWy2k',
+    authDomain: 'kyoto-trip-map-a6635.firebaseapp.com',
+    projectId: 'kyoto-trip-map-a6635',
+    storageBucket: 'kyoto-trip-map-a6635.firebasestorage.app',
+    messagingSenderId: '135481791048',
+    appId: '1:135481791048:web:2b2153b6774cea5eba3e7d',
+  },
   tripId: 'kyoto2026',    // 這趟旅程的代號，所有清單都存在這個代號底下
+                          // ⚠️ 改這個代號就要同步改 Firestore 安全規則裡的路徑
   maxLists: 30,           // 最多保留幾份清單，避免無限增加
 };
 
