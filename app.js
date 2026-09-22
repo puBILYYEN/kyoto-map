@@ -356,6 +356,12 @@ function updateMarkerVisibility() {
     el.style.width = size + 'px';
     el.style.height = size + 'px';
 
+    // 有些景點（例如寺院跟它境內的餐廳）座標完全相同，圖釘會疊在同一個
+    // 像素上。沒有這行的話，疊在上面、沒被選取的那個小圓點會把下面已選
+    // 取的圓點連同編號整個蓋住，看起來就像編號消失了一樣。用 z-index
+    // 讓「已選取」永遠疊最上面，其次是「目前查看中」，其餘維持預設順序。
+    el.style.zIndex = order >= 0 ? '10' : (spot.id === activeSpotId ? '5' : '1');
+
     // 只改文字節點，不要用 textContent 否則會把名稱標籤一起刪掉
     el.childNodes.forEach(node => {
       if (node.nodeType === Node.TEXT_NODE) node.remove();
