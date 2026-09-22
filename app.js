@@ -32,6 +32,30 @@ try {
     zoom: 11.2,
   });
   map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+  // 定位按鈕：用手機瀏覽器原生 GPS，不需要任何 API 金鑰。
+  // trackUserLocation 開著的話，走動時藍點會跟著移動，適合現場對照
+  // 「我在哪裡、下一個景點怎麼走」。
+  const geolocate = new maplibregl.GeolocateControl({
+    positionOptions: { enableHighAccuracy: true },
+    trackUserLocation: true,
+    showUserHeading: true,
+  });
+  map.addControl(geolocate, 'top-right');
+  geolocate.on('error', (err) => {
+    // 常見原因：使用者按了拒絕、瀏覽器不支援、或不是 HTTPS。
+    // 不讓地圖壞掉，只是提示一下，跟長按問路共用同一個提示區塊。
+    console.warn('[定位] 無法取得位置：', err);
+    const hint = document.getElementById('mapHint');
+    if (!hint) return;
+    hint.textContent = err.code === 1
+      ? '📍 定位被拒絕了，如果想用這個功能，請到手機設定允許這個網站使用位置。'
+      : '📍 目前無法取得你的位置，請稍後再試。';
+    hint.hidden = false;
+    const hide = () => { hint.hidden = true; };
+    hint.addEventListener('click', hide, { once: true });
+    setTimeout(hide, 6000);
+  });
 } catch (err) {
   console.warn('[地圖] 無法初始化，其餘功能不受影響：', err);
   map = null;
