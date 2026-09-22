@@ -509,6 +509,7 @@ const TABS = [
   { cat: 'nobunaga', label: CATEGORY_META.nobunaga.label },
   { cat: 'ujimatcha', label: CATEGORY_META.ujimatcha.label },
   { cat: 'anime', label: CATEGORY_META.anime.label },
+  { cat: 'shogun', label: CATEGORY_META.shogun.label },
 ];
 
 function renderTabs() {
