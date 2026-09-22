@@ -16,6 +16,32 @@ let tempAskMarker = null;              // 問路時，沒對應到既有景點�
 // 這個變數，宣告在後面會踩到 TDZ，所以要跟其他早期宣告放在一起。
 let othersState = {};                  // 其他人：id -> { name, color, spotIds }
 
+// 有些景點跟境內附屬的店家／設施座標完全相同（例如龍安寺跟西源院、
+// 貴船神社跟貴船溪谷），圖釘會疊在同一個像素上，沒被選取的那個會把
+// 另一個整個蓋住——包含蓋住的那個景點自己的跳棋旗子，導致明明有人
+// 選了卻在地圖上完全看不到。這裡用 MapLibre Marker 的 pixel offset
+// 把畫面上的圖釘位置錯開幾個像素，不管縮放到多遠都分得開；不改
+// spot.lat/lng 本身，所以 Google 地圖連結、距離計算都不受影響。
+// 要跟 renderMarkers() 一樣早宣告，避免 TDZ。
+function computeMarkerOffsets() {
+  const groups = {};
+  SPOTS.forEach(spot => {
+    const key = spot.lat.toFixed(5) + ',' + spot.lng.toFixed(5);
+    (groups[key] = groups[key] || []).push(spot.id);
+  });
+  const offsets = {};
+  const r = 9;   // 像素，不隨縮放程度變化
+  Object.values(groups).forEach(ids => {
+    if (ids.length < 2) return;
+    ids.forEach((id, i) => {
+      const angle = (2 * Math.PI * i) / ids.length;
+      offsets[id] = [r * Math.cos(angle), r * Math.sin(angle)];
+    });
+  });
+  return offsets;
+}
+const markerOffsets = computeMarkerOffsets();
+
 // 「24 小時開放」「境內自由參拜」這類講法都代表本身沒有時間限制。
 // 一定要宣告在這裡：renderMarkers() 在檔案開頭就會執行，const 宣告在
 // 後面的話會踩到暫時性死區（TDZ），標記會整個畫不出來。
@@ -331,7 +357,11 @@ function renderMarkers() {
       showDetail(spot.id);
     });
 
-    const marker = new maplibregl.Marker({ element: el })
+    // 景點真正的座標（setLngLat）完全不動，一定是 spot.lng/spot.lat 本身，
+    // 不會因為旁邊有重疊的圖釘就跑掉。只有 offset 這個畫面上的像素位移
+    // 會讓重疊的圖釘看起來分開一點，地圖底層記的位置還是同一個點。
+    const off = markerOffsets[spot.id];
+    const marker = new maplibregl.Marker({ element: el, offset: off || [0, 0] })
       .setLngLat([spot.lng, spot.lat])
       .addTo(map);
 
@@ -356,11 +386,15 @@ function updateMarkerVisibility() {
     el.style.width = size + 'px';
     el.style.height = size + 'px';
 
-    // 有些景點（例如寺院跟它境內的餐廳）座標完全相同，圖釘會疊在同一個
-    // 像素上。沒有這行的話，疊在上面、沒被選取的那個小圓點會把下面已選
-    // 取的圓點連同編號整個蓋住，看起來就像編號消失了一樣。用 z-index
-    // 讓「已選取」永遠疊最上面，其次是「目前查看中」，其餘維持預設順序。
-    el.style.zIndex = order >= 0 ? '10' : (spot.id === activeSpotId ? '5' : '1');
+    // 座標完全相同的圖釘現在已經用 markerOffsets 錯開幾個像素（見上面
+    // computeMarkerOffsets 的說明），但縮放程度高或圖釘本身放大時還是
+    // 可能局部疊到。這裡再用 z-index 保險一次：已選取的永遠疊最上面，
+    // 其次是「身上有跳棋旗子」的（不能讓旁邊沒人選的景點把跳棋蓋住），
+    // 再來是目前查看中的，其餘維持預設順序。
+    const hasPawn = Object.values(othersState).some(
+      m => Array.isArray(m.spotIds) && m.spotIds.includes(spot.id)
+    );
+    el.style.zIndex = order >= 0 ? '10' : hasPawn ? '8' : (spot.id === activeSpotId ? '5' : '1');
 
     // 只改文字節點，不要用 textContent 否則會把名稱標籤一起刪掉
     el.childNodes.forEach(node => {
