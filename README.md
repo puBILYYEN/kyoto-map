@@ -214,16 +214,44 @@ service cloud.firestore {
                     && request.resource.data.spotIds is list
                     && request.resource.data.spotIds.size() <= 60;
     }
+    match /trips/kyoto2026/members/{memberId} {
+      allow read: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(['name', 'color', 'spotIds', 'updatedAt'])
+                    && request.resource.data.name is string
+                    && request.resource.data.name.size() <= 10
+                    && request.resource.data.color is string
+                    && request.resource.data.spotIds is list
+                    && request.resource.data.spotIds.size() <= 60;
+    }
   }
 }
 ```
 
-這組規則把可寫入的範圍限制在那一個路徑，並檢查欄位與長度。
+這組規則把可寫入的範圍限制在那兩個路徑，並檢查欄位與長度。`members` 是「跳棋」功能用的（見下面說明），文件 ID 就是使用者自己取的名字。
 
-> 老實說：因為沒有登入機制，任何知道網址的人理論上都能讀寫那份清單。
+> 老實說：因為沒有登入機制，任何知道網址的人理論上都能讀寫這些資料。
 > 對家庭旅遊的用途來說這樣夠了；若之後在意，可以改用 Firebase 匿名登入再加上規則。
 
 沒有填 config 的話，按鈕還是可以按，只會顯示「尚未設定」，不會讓網站壞掉。
+
+> ⚠️ **重要**：如果 Firestore 規則已經是舊版（只有 `lists` 那一段），要記得回
+> Firebase 主控台 → Firestore Database → 規則，把上面完整的新版貼上去再發布，
+> 不然跳棋功能會因為權限被拒絕而完全無法同步（地圖上不會顯示任何錯誤訊息，
+> 只是安靜地同步失敗，選點功能本身不受影響）。
+
+## 跳棋（即時顯示每個人選了什麼）
+
+不用登入 Google 帳號，取個名字、選個顏色，選點就會自動同步給其他家人看，
+不用手動傳連結或按「分享」——地圖上每個人的選點會用自己的顏色、自己的
+順序號碼顯示成一顆顆小棋子疊在景點旁邊，不會互相覆蓋掉。
+
+- 名字本身就是 Firestore 裡的識別碼（不是隨機產生的），所以同一個人在不同
+  裝置、不同瀏覽器打同一個名字，會被認成同一支棋子、沿用同一個顏色，
+  換裝置不會變成新的人。**家人之間名字不要重複**，不然會被當成同一支棋子。
+- 顏色預設由名字算出固定值（離線也能用同一色），如果先前在別的裝置存過
+  顏色，會優先沿用那個。
+- 這個功能跟上面「共享清單」是各自獨立的兩套機制：共享清單要手動存、
+  手動開；跳棋是設定一次名字之後全自動、即時同步，兩者不會互相干擾。
 
 ## 長按地圖問路
 

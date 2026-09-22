@@ -11,6 +11,11 @@ let pendingFit = false;   // 地圖在手機版被隱藏時無法計算範圍，
 let suppressNextMarkerClick = false;   // 長按問路觸發後，吃掉緊接著補上的那次 click
 let tempAskMarker = null;              // 問路時，沒對應到既有景點就在地圖上放的臨時圖釘
 
+// 跳棋（其他家人即時選的景點）：renderMarkers() 在檔案開頭就會同步執行
+// （見下面「地圖初始化」的說明），renderMemberPawns() 會在那時候就用到
+// 這個變數，宣告在後面會踩到 TDZ，所以要跟其他早期宣告放在一起。
+let othersState = {};                  // 其他人：id -> { name, color, spotIds }
+
 // 「24 小時開放」「境內自由參拜」這類講法都代表本身沒有時間限制。
 // 一定要宣告在這裡：renderMarkers() 在檔案開頭就會執行，const 宣告在
 // 後面的話會踩到暫時性死區（TDZ），標記會整個畫不出來。
@@ -359,6 +364,37 @@ function updateMarkerVisibility() {
     el.style.fontSize = order >= 9 ? '9px' : '11px';
     el.classList.toggle('marker-selected', order >= 0);
   });
+  renderMemberPawns();
+}
+
+// 跳棋：把其他家人選的景點，用他們自己的顏色＋自己的順序號碼疊在圓點旁邊，
+// 不動到圓點本身（那是自己的選點，邏輯完全不受這個功能影響）
+function renderMemberPawns() {
+  if (!map) return;
+  SPOTS.forEach(spot => {
+    const marker = markers[spot.id];
+    if (!marker) return;
+    const el = marker.getElement();
+    el.querySelectorAll('.member-pawn').forEach(n => n.remove());
+
+    const pawns = Object.values(othersState).filter(
+      m => Array.isArray(m.spotIds) && m.spotIds.includes(spot.id)
+    );
+    pawns.forEach((m, i) => {
+      const pawn = document.createElement('span');
+      pawn.className = 'member-pawn';
+      pawn.textContent = String(m.spotIds.indexOf(spot.id) + 1);
+      pawn.title = m.name;
+      pawn.style.background = m.color;
+      pawn.style.width = '14px';
+      pawn.style.height = '14px';
+      pawn.style.fontSize = '8px';
+      pawn.style.bottom = '-6px';
+      pawn.style.left = (i * 12 - 6) + 'px';
+      pawn.style.zIndex = '5';
+      el.appendChild(pawn);
+    });
+  });
 }
 
 // ---------- Tabs ----------
@@ -548,6 +584,7 @@ function renderSelection() {
   }
 
   updateRouteLine();
+  scheduleMemberSync();
 }
 
 // 產生已選清單上的小按鈕（▲ ▼ ✕）
@@ -1052,6 +1089,204 @@ shareEl('shareOpenBtn').addEventListener('click', () => {
   renderSharedLists();
 });
 shareEl('shareClose').addEventListener('click', () => closeShare());
+
+// ---------- 跳棋：即時顯示每個人選了什麼（Firebase Firestore）----------
+// 跟上面「共享清單」不一樣：那個要手動存、手動開才看得到對方的清單；
+// 這個是每個人取一個名字＋顏色之後，選點會自動同步，其他家人不用做
+// 任何動作，地圖上就會自動多一顆屬於那個人的棋子。
+//
+// 不用 Google 登入，所以用「名字」本身當 Firestore 的文件 ID（不是隨機碼），
+// 這樣同一個人不管在哪個瀏覽器、哪個裝置，只要打同一個名字，就會對到
+// 同一份資料、同一個顏色，不會每次都變成新的一個人。顏色預設用名字算出
+// 固定值（離線也能用），如果先前在別的裝置存過顏色，會優先沿用那個。
+// 代價：這個名字必須家人之間不要重複，不然會被當成同一支棋子。
+
+const MEMBER_KEY = 'kyotoMemberIdentity';
+let memberIdentity = loadMemberIdentity();   // { id, name, color } 或 null
+let membersListening = false;
+let memberSyncTimer = null;
+
+function loadMemberIdentity() {
+  try {
+    const raw = localStorage.getItem(MEMBER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+function saveMemberIdentity() {
+  try { localStorage.setItem(MEMBER_KEY, JSON.stringify(memberIdentity)); }
+  catch (err) { /* 存不了就算了，不影響其他功能，只是換裝置要重新設定 */ }
+}
+
+// 同一個名字每次都要算出同一個顏色，這樣離線、或還沒查到 Firestore
+// 資料之前，也不會亂跳色
+function hashName(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+async function setupMemberIdentity() {
+  const raw = prompt(
+    '請輸入你的名字（家人在不同手機／瀏覽器打同一個名字，會被認成同一個人、自動沿用同樣的顏色，所以名字不要跟其他家人重複）',
+    memberIdentity ? memberIdentity.name : ''
+  );
+  if (raw === null) return;
+  const name = raw.trim().slice(0, 10);
+  if (!name) return;
+
+  let color = MEMBER_COLORS[hashName(name) % MEMBER_COLORS.length];
+  try {
+    const db = await getFirestore();
+    const snap = await db.getDoc(db.doc(db.instance, 'trips', SHARE_CONFIG.tripId, 'members', name));
+    if (snap.exists() && snap.data().color) color = snap.data().color;
+  } catch (err) {
+    // 離線或連不上時用上面算好的預設顏色，不擋住設定流程
+  }
+
+  memberIdentity = { id: name, name, color };
+  saveMemberIdentity();
+  renderMemberBox();
+  pushMemberDoc();
+  startMembersListener();
+}
+
+function renderMemberBox() {
+  const me = shareEl('memberMe');
+  if (!me) return;
+  me.innerHTML = '';
+
+  if (!memberIdentity) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'share-btn share-btn-primary';
+    btn.textContent = '🀄 設定我的跳棋（名字）';
+    btn.addEventListener('click', setupMemberIdentity);
+    me.appendChild(btn);
+    shareEl('memberOthers').innerHTML = '';
+    return;
+  }
+
+  const tag = document.createElement('div');
+  tag.className = 'member-name-tag';
+  const dot = document.createElement('span');
+  dot.className = 'member-dot';
+  dot.style.background = memberIdentity.color;
+  const label = document.createElement('span');
+  label.innerHTML = `你是 <b>${memberIdentity.name}</b>`;
+  const renameBtn = document.createElement('button');
+  renameBtn.type = 'button';
+  renameBtn.className = 'share-btn';
+  renameBtn.style.flex = 'none';
+  renameBtn.style.padding = '4px 8px';
+  renameBtn.textContent = '✏️';
+  renameBtn.title = '改名字';
+  renameBtn.addEventListener('click', setupMemberIdentity);
+  tag.appendChild(dot);
+  tag.appendChild(label);
+  tag.appendChild(renameBtn);
+  me.appendChild(tag);
+
+  const colors = document.createElement('div');
+  colors.className = 'member-colors';
+  MEMBER_COLORS.forEach(c => {
+    const sw = document.createElement('button');
+    sw.type = 'button';
+    sw.className = 'member-color-swatch' + (c === memberIdentity.color ? ' active' : '');
+    sw.style.background = c;
+    sw.title = '換成這個顏色';
+    sw.addEventListener('click', () => {
+      memberIdentity.color = c;
+      saveMemberIdentity();
+      renderMemberBox();
+      pushMemberDoc();
+    });
+    colors.appendChild(sw);
+  });
+  me.appendChild(colors);
+
+  renderOthersList();
+}
+
+function renderOthersList() {
+  const wrap = shareEl('memberOthers');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  const others = Object.values(othersState);
+  if (!others.length) {
+    wrap.textContent = memberIdentity ? '目前還沒有其他家人設定跳棋。' : '';
+    return;
+  }
+  others.forEach(m => {
+    const row = document.createElement('div');
+    row.className = 'member-others-row';
+    const dot = document.createElement('span');
+    dot.className = 'member-dot';
+    dot.style.background = m.color;
+    const text = document.createElement('span');
+    const n = Array.isArray(m.spotIds) ? m.spotIds.length : 0;
+    text.textContent = `${m.name}（已選 ${n} 個景點）`;
+    row.appendChild(dot);
+    row.appendChild(text);
+    wrap.appendChild(row);
+  });
+}
+
+// 選點有變動時就 debounce 一下再同步，避免連續勾選時瘋狂寫入
+function scheduleMemberSync() {
+  if (!memberIdentity) return;
+  clearTimeout(memberSyncTimer);
+  memberSyncTimer = setTimeout(pushMemberDoc, 800);
+}
+
+async function pushMemberDoc() {
+  if (!memberIdentity) return;
+  try {
+    const db = await getFirestore();
+    await db.setDoc(
+      db.doc(db.instance, 'trips', SHARE_CONFIG.tripId, 'members', memberIdentity.id),
+      {
+        name: memberIdentity.name,
+        color: memberIdentity.color,
+        spotIds: selectedIds.slice(0, MAX_SHARED_SPOTS),
+        updatedAt: db.serverTimestamp(),
+      }
+    );
+  } catch (err) {
+    console.warn('[跳棋] 同步失敗，下次選點變動時會再試一次：', err);
+  }
+}
+
+// 訂閱其他人的即時異動，一有人改選點，大家的地圖立刻更新，不用手動重新整理
+async function startMembersListener() {
+  if (membersListening || !memberIdentity) return;
+  membersListening = true;
+  try {
+    const db = await getFirestore();
+    db.onSnapshot(
+      db.collection(db.instance, 'trips', SHARE_CONFIG.tripId, 'members'),
+      (snap) => {
+        const next = {};
+        snap.forEach(docSnap => {
+          if (docSnap.id === memberIdentity.id) return;   // 自己已經用原本的圓點+號碼顯示，不用重複疊一次
+          next[docSnap.id] = docSnap.data();
+        });
+        othersState = next;
+        renderOthersList();
+        renderMemberPawns();
+      },
+      (err) => console.warn('[跳棋] 即時同步中斷：', err)
+    );
+  } catch (err) {
+    membersListening = false;
+    console.warn('[跳棋] 無法連上即時同步：', err);
+  }
+}
+
+renderMemberBox();
+if (memberIdentity) startMembersListener();
 
 // ---------- 離線支援 ----------
 // 註冊 Service Worker，讓網站在沒有網路時仍然打得開

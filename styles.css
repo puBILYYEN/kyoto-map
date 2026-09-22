@@ -645,6 +645,54 @@ html, body {
 .share-item-actions { display: flex; flex-shrink: 0; gap: 6px; }
 .share-item-actions .share-btn { flex: none; padding: 8px 12px; }
 
+/* 跳棋：每人一個顏色，選點會即時同步給其他家人 */
+.member-box { margin-bottom: 8px; }
+.member-me { display: flex; align-items: center; gap: 8px; }
+.member-dot {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px var(--border);
+  flex-shrink: 0;
+}
+.member-name-tag {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.member-name-tag b { color: var(--text); }
+.member-colors { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.member-color-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px var(--border);
+  cursor: pointer;
+  padding: 0;
+}
+.member-color-swatch.active { box-shadow: 0 0 0 2px var(--text); }
+.member-others { margin-top: 6px; font-size: 12.5px; color: var(--text-muted); line-height: 1.8; }
+.member-others-row { display: flex; align-items: center; gap: 6px; }
+
+.member-pawn {
+  position: absolute;
+  border-radius: 50%;
+  border: 1.5px solid #fff;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
 /* 問路小工具 */
 .ask-overlay {
   position: fixed;
