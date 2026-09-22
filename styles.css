@@ -626,25 +626,6 @@ html, body {
 .share-note { margin: 4px 0 10px; font-size: 13.5px; line-height: 1.7; color: var(--text-muted); }
 .share-note-ok { color: var(--accent); font-weight: 600; }
 
-.share-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 11px 0;
-  border-bottom: 1px solid #f1ece2;
-}
-.share-item:last-child { border-bottom: none; }
-.share-item-info { flex: 1; min-width: 0; }
-.share-item-name { font-size: 14.5px; font-weight: 600; }
-.share-item-spots {
-  font-size: 12.5px;
-  color: var(--text-muted);
-  line-height: 1.5;
-  margin-top: 2px;
-}
-.share-item-actions { display: flex; flex-shrink: 0; gap: 6px; }
-.share-item-actions .share-btn { flex: none; padding: 8px 12px; }
-
 /* 跳棋：每人一個顏色，選點會即時同步給其他家人 */
 .member-box { margin-bottom: 8px; }
 .member-me { display: flex; align-items: center; gap: 8px; }
@@ -695,6 +676,27 @@ html, body {
   padding-top: 1px;
   pointer-events: none;
 }
+
+/* 共同選點：取代舊的「分享清單」，用跳棋的即時資料自動統計誰選了什麼 */
+.joint-box { margin-bottom: 8px; }
+.joint-box h4 { margin: 0 0 6px; font-size: 13px; }
+.joint-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.joint-row:hover { background: #f1e6d8; }
+.joint-row-hot { background: #fbeee6; color: var(--text); font-weight: 600; }
+.joint-row-hot:hover { background: #f6ddce; }
+.joint-spot-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.joint-dots { display: flex; gap: 3px; flex-shrink: 0; }
+.joint-dots .member-dot { width: 12px; height: 12px; }
 
 /* 問路小工具 */
 .ask-overlay {
@@ -992,7 +994,6 @@ html, body {
   .ask-play-btn { padding: 16px; font-size: 16.5px; }
   .map-hint { font-size: 12px; top: 6px; }
   .share-box { max-height: 88vh; }
-  .share-item-actions .share-btn { padding: 11px 14px; }
   /* 標題列三顆按鈕在窄螢幕會擠，導遊鈕最重要，其餘縮字 */
   .prep-btn { padding: 8px 10px; font-size: 12px; }
   /* 手機上要拿給日本人看，日文放大一點 */

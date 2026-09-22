@@ -914,8 +914,9 @@ async function shareByLink() {
   }
 }
 
-// ---------- 共享清單（Firebase Firestore）----------
-// 用途：妹妹在她手機上勾好景點存成一份清單，姊姊打開就能載入同一份。
+// ---------- 分享的共用基礎設施（Firebase Firestore）----------
+// 下面的浮出視窗跟 Firestore 連線，是「用連結分享」的複製結果提示，
+// 跟再往下的「跳棋」都會用到，所以留在這裡共用。
 // Firebase SDK 用動態 import 從 CDN 載入，只有真的要用時才下載，
 // 不影響首次開啟速度，也不會影響離線功能。
 
@@ -954,146 +955,7 @@ async function getFirestore() {
   return shareState.db;
 }
 
-function shareUnavailableMessage(err) {
-  if (!SHARE_CONFIG.firebaseConfig) {
-    return '共享清單還沒設定好（缺少 Firebase 設定），所以暫時不能用。' +
-      '你目前勾選的景點仍然正常，只是沒辦法傳給其他人。';
-  }
-  if (navigator.onLine === false) return '目前沒有網路，共享清單需要連線才能使用。';
-  return '連不上共享清單（' + err.message + '），請稍後再試。';
-}
-
-// 把目前勾選的景點存成一份清單
-async function saveSharedList() {
-  if (!selectedIds.length) {
-    shareMessage('<p class="share-note">還沒有勾選任何景點。先在清單上勾幾個，再回來分享。</p>');
-    return;
-  }
-
-  const name = prompt('幫這份清單取個名字（例如：妹妹想去的）', '');
-  if (name === null) return;
-  const listName = (name || '未命名清單').trim().slice(0, 40);
-
-  shareMessage('<p class="share-note">儲存中…</p>');
-  try {
-    const db = await getFirestore();
-    await db.addDoc(
-      db.collection(db.instance, 'trips', SHARE_CONFIG.tripId, 'lists'),
-      {
-        name: listName,
-        spotIds: selectedIds.slice(0, 60),
-        createdAt: db.serverTimestamp(),
-      }
-    );
-    await renderSharedLists('已儲存「' + listName + '」。其他人打開「共享清單」就看得到了。');
-  } catch (err) {
-    shareMessage('<p class="share-note">' + shareUnavailableMessage(err) + '</p>');
-  }
-}
-
-// 列出所有人存過的清單
-async function renderSharedLists(notice) {
-  shareMessage('<p class="share-note">讀取中…</p>');
-  try {
-    const db = await getFirestore();
-    const snap = await db.getDocs(db.query(
-      db.collection(db.instance, 'trips', SHARE_CONFIG.tripId, 'lists'),
-      db.orderBy('createdAt', 'desc'),
-      db.limit(SHARE_CONFIG.maxLists)
-    ));
-
-    const body = shareEl('shareBody');
-    body.innerHTML = '';
-    if (notice) {
-      const n = document.createElement('p');
-      n.className = 'share-note share-note-ok';
-      n.textContent = notice;
-      body.appendChild(n);
-    }
-    if (snap.empty) {
-      const p = document.createElement('p');
-      p.className = 'share-note';
-      p.textContent = '還沒有人分享清單。勾選幾個景點後按「分享這份清單」就會出現在這裡。';
-      body.appendChild(p);
-      return;
-    }
-
-    snap.forEach(docSnap => {
-      const data = docSnap.data();
-      const names = (data.spotIds || [])
-        .map(id => (SPOTS.find(s => s.id === id) || {}).name)
-        .filter(Boolean);
-
-      const row = document.createElement('div');
-      row.className = 'share-item';
-
-      const info = document.createElement('div');
-      info.className = 'share-item-info';
-      const title = document.createElement('div');
-      title.className = 'share-item-name';
-      title.textContent = `${data.name}（${names.length} 個景點）`;
-      const detail = document.createElement('div');
-      detail.className = 'share-item-spots';
-      detail.textContent = names.join('、') || '（清單中的景點已不存在）';
-      info.appendChild(title);
-      info.appendChild(detail);
-
-      const actions = document.createElement('div');
-      actions.className = 'share-item-actions';
-
-      const loadBtn = document.createElement('button');
-      loadBtn.type = 'button';
-      loadBtn.className = 'share-btn share-btn-primary';
-      loadBtn.textContent = '載入';
-      loadBtn.addEventListener('click', () => loadSharedList(data.spotIds || [], data.name));
-
-      const delBtn = document.createElement('button');
-      delBtn.type = 'button';
-      delBtn.className = 'share-btn';
-      delBtn.textContent = '刪除';
-      delBtn.addEventListener('click', async () => {
-        if (!confirm(`確定要刪除「${data.name}」嗎？其他人也會看不到。`)) return;
-        try {
-          const d = await getFirestore();
-          await d.deleteDoc(d.doc(d.instance, 'trips', SHARE_CONFIG.tripId, 'lists', docSnap.id));
-          await renderSharedLists('已刪除「' + data.name + '」。');
-        } catch (err) {
-          shareMessage('<p class="share-note">刪除失敗：' + err.message + '</p>');
-        }
-      });
-
-      actions.appendChild(loadBtn);
-      actions.appendChild(delBtn);
-      row.appendChild(info);
-      row.appendChild(actions);
-      body.appendChild(row);
-    });
-  } catch (err) {
-    shareMessage('<p class="share-note">' + shareUnavailableMessage(err) + '</p>');
-  }
-}
-
-// 把清單裡的景點套用到目前的勾選
-function loadSharedList(spotIds, name) {
-  const valid = spotIds.filter(id => SPOTS.some(s => s.id === id));
-  const missing = spotIds.length - valid.length;
-  selectedIds = valid;
-  renderList();
-  renderSelection();
-  updateMarkerVisibility();
-  fitToVisibleSpots();
-  closeShare();
-  if (missing > 0) {
-    alert(`已載入「${name}」，但其中 ${missing} 個景點已經不在資料裡，已略過。`);
-  }
-}
-
 shareEl('shareLinkBtn').addEventListener('click', shareByLink);
-shareEl('shareSaveBtn').addEventListener('click', saveSharedList);
-shareEl('shareOpenBtn').addEventListener('click', () => {
-  if (!history.state || !history.state.share) history.pushState({ share: true }, '');
-  renderSharedLists();
-});
 shareEl('shareClose').addEventListener('click', () => closeShare());
 
 // ---------- 跳棋：即時顯示每個人選了什麼（Firebase Firestore）----------
@@ -1172,6 +1034,7 @@ function renderMemberBox() {
     btn.addEventListener('click', setupMemberIdentity);
     me.appendChild(btn);
     shareEl('memberOthers').innerHTML = '';
+    renderJointList();
     return;
   }
 
@@ -1214,6 +1077,7 @@ function renderMemberBox() {
   me.appendChild(colors);
 
   renderOthersList();
+  renderJointList();
 }
 
 function renderOthersList() {
@@ -1240,8 +1104,68 @@ function renderOthersList() {
   });
 }
 
+// ---------- 共同選點（統整跳棋大家目前選了什麼）----------
+// 取代原本要手動存、手動開的「分享清單」：這裡直接用跳棋已經同步好的
+// 資料，自動列出「誰選了哪個景點」，兩人以上重疊的排最上面，方便討論
+// 共同行程時一眼看出大家都想去的地方。
+function renderJointList() {
+  const wrap = shareEl('jointList');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+
+  if (!memberIdentity) {
+    wrap.innerHTML = '<p class="share-note">設定跳棋名字後，這裡會自動列出大家選了哪些景點。</p>';
+    return;
+  }
+
+  const tally = {};   // spotId -> [{ name, color }]
+  selectedIds.forEach(id => {
+    (tally[id] = tally[id] || []).push({ name: memberIdentity.name, color: memberIdentity.color });
+  });
+  Object.values(othersState).forEach(m => {
+    (m.spotIds || []).forEach(id => {
+      (tally[id] = tally[id] || []).push({ name: m.name, color: m.color });
+    });
+  });
+
+  const rows = Object.entries(tally)
+    .map(([id, pickers]) => ({ spot: SPOTS.find(s => s.id === id), pickers }))
+    .filter(r => r.spot)
+    .sort((a, b) => b.pickers.length - a.pickers.length);
+
+  if (!rows.length) {
+    wrap.innerHTML = '<p class="share-note">目前還沒有人選景點。</p>';
+    return;
+  }
+
+  rows.forEach(({ spot, pickers }) => {
+    const row = document.createElement('div');
+    row.className = 'joint-row' + (pickers.length >= 2 ? ' joint-row-hot' : '');
+    row.addEventListener('click', () => showDetail(spot.id));
+
+    const name = document.createElement('span');
+    name.className = 'joint-spot-name';
+    name.textContent = spot.name;
+
+    const dots = document.createElement('span');
+    dots.className = 'joint-dots';
+    pickers.forEach(p => {
+      const dot = document.createElement('span');
+      dot.className = 'member-dot';
+      dot.style.background = p.color;
+      dot.title = p.name;
+      dots.appendChild(dot);
+    });
+
+    row.appendChild(name);
+    row.appendChild(dots);
+    wrap.appendChild(row);
+  });
+}
+
 // 選點有變動時就 debounce 一下再同步，避免連續勾選時瘋狂寫入
 function scheduleMemberSync() {
+  renderJointList();
   if (!memberIdentity) return;
   clearTimeout(memberSyncTimer);
   memberSyncTimer = setTimeout(pushMemberDoc, 800);
@@ -1282,6 +1206,7 @@ async function startMembersListener() {
         othersState = next;
         renderOthersList();
         renderMemberPawns();
+        renderJointList();
       },
       (err) => console.warn('[跳棋] 即時同步中斷：', err)
     );
