@@ -834,6 +834,7 @@ html, body {
 .chat-msg-user { align-self: flex-end; background: var(--accent); color: #fff; }
 .chat-msg-warn { background: #fdf0e6; color: #8c4a22; }
 .chat-msg-thinking { opacity: 0.65; font-style: italic; }
+.chat-msg-ok { background: #eaf5ec; color: #1f6b34; font-weight: 600; }
 
 .chat-suggest {
   display: flex;

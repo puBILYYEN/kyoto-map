@@ -1609,9 +1609,11 @@ function showLongPressHintOnce() {
   try { localStorage.setItem('kyotoMapAskHintSeen', '1'); } catch { /* 同上 */ }
 }
 
-// 把景點的實際資料整理成一行，讓導遊照我們的資料回答，而不是憑自己的記憶
+// 把景點的實際資料整理成一行，讓導遊照我們的資料回答，而不是憑自己的記憶。
+// 開頭的 [id] 是給導遊在建議加入地圖時引用用的，不是給人看的（見下面
+// extractAddTag() 的說明），一定要留著，不然導遊沒辦法指定要加哪個點。
 function describeSpot(spot) {
-  let line = `${spot.name}（${spot.area}）：${spot.desc}`;
+  let line = `[${spot.id}] ${spot.name}（${spot.area}）：${spot.desc}`;
   if (spot.booking) {
     const meta = BOOKING_META[spot.booking.level];
     line += `【${meta.label}：${spot.booking.note}】`;
@@ -1706,6 +1708,39 @@ function closeChat(fromBackButton) {
   if (!fromBackButton && history.state && history.state.chat) history.back();
 }
 
+// 導遊要建議加進地圖的景點時，會在回答最後面附上像 [[ADD: t01,v01]]
+// 這樣的標記（後端 system prompt 有教它這個格式，只能用【目前畫面狀態】
+// 裡有出現的 [id]，不能自己編）。這段負責把標記從顯示文字裡拿掉，
+// 使用者只會看到正常的一段話，不會看到這個內部用的標記本身。
+function extractAddTag(answer) {
+  const m = answer.match(/\[\[ADD:\s*([^\]]*)\]\]/i);
+  if (!m) return { text: answer, ids: [] };
+  const ids = m[1].split(',').map(s => s.trim()).filter(Boolean);
+  return { text: answer.replace(m[0], '').trim(), ids };
+}
+
+// 把導遊建議的景點加進「已選景點」。只接受真的存在於資料庫的 id
+// （導遊可能會編造或記錯，這裡一律不信任，交叉比對 SPOTS 才算數），
+// 已經選過的不重複加，一次最多加 8 個，避免單一回覆就洗掉整個地圖。
+const MAX_GUIDE_ADD = 8;
+function applyGuideSuggestions(ids) {
+  if (!ids || !ids.length) return;
+  const toAdd = ids
+    .filter(id => SPOTS.some(s => s.id === id))
+    .filter(id => !selectedIds.includes(id))
+    .slice(0, MAX_GUIDE_ADD);
+  if (!toAdd.length) return;
+
+  selectedIds.push(...toAdd);
+  renderList();
+  renderSelection();
+  updateMarkerVisibility();
+  fitToVisibleSpots();
+
+  const names = toAdd.map(id => SPOTS.find(s => s.id === id).name);
+  addChatMessage('bot', '📍 已經幫你把「' + names.join('、') + '」加進「已選景點」了。', 'chat-msg-ok');
+}
+
 async function sendToGuide(text) {
   const question = (text || '').trim();
   if (!question || chatState.busy) return;
@@ -1756,10 +1791,12 @@ async function sendToGuide(text) {
       throw Object.assign(new Error('guide-http'), { code: 'E' + res.status });
     }
     const data = await res.json();
-    const answer = (data && data.answer) ? data.answer : '導遊沒有回覆內容，請再問一次。';
+    const rawAnswer = (data && data.answer) ? data.answer : '導遊沒有回覆內容，請再問一次。';
+    const { text: answer, ids: suggestedIds } = extractAddTag(rawAnswer);
     thinking.remove();
     addChatMessage('bot', answer);
     chatState.history.push({ q: question, a: answer });
+    applyGuideSuggestions(suggestedIds);
   } catch (err) {
     thinking.remove();
     console.warn('[導遊] 失敗：', err);
