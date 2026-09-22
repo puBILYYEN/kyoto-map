@@ -132,6 +132,20 @@ async function askAI({ question, context, history }) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 45000);
 
+  // Nemotron 系列是推理模型，預設會先產生一大段內部思考過程再回答，
+  // 常常把 max_tokens 都花在思考上，害真正的答案被截斷變成空白
+  // （這就是我們在日誌裡看到的「AI 沒有回傳內容」）。用官方文件說的
+  // chat_template_kwargs 關掉思考模式，官方建議搭配 temperature 0，
+  // 回答更簡潔也更穩定。這個參數其他供應商看到會直接忽略，不影響。
+  const isNemotron = /nemotron/i.test(AI_MODEL);
+  const requestBody = {
+    model: AI_MODEL,
+    messages,
+    temperature: isNemotron ? 0 : 0.7,
+    max_tokens: 600,
+  };
+  if (isNemotron) requestBody.chat_template_kwargs = { enable_thinking: false };
+
   try {
     const res = await fetch(AI_CHAT_URL, {
       method: 'POST',
@@ -139,12 +153,7 @@ async function askAI({ question, context, history }) {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${AI_API_KEY}`,
       },
-      body: JSON.stringify({
-        model: AI_MODEL,
-        messages,
-        temperature: 0.7,
-        max_tokens: 600,
-      }),
+      body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
 
