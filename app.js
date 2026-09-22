@@ -264,6 +264,30 @@ function renderMarkers() {
     el.style.fontWeight = '700';
     el.style.lineHeight = '1';
 
+    // 動漫巡禮景點加一個電影拍板徽章疊在圓點右上角，不動圓點本身的
+    // 分類顏色。el 本身已經是 position:absolute（MapLibre 自己的
+    // .maplibregl-marker 規則給的，不是這裡手動設的），子元素用
+    // absolute 定位可以正常錨定在 el 上，不會踩到「手動改 el 的
+    // position 蓋掉 MapLibre 定位」那個舊 bug（見上面的說明註解）。
+    if (spot.categories.includes('anime')) {
+      const badge = document.createElement('span');
+      badge.textContent = '🎬';
+      badge.style.position = 'absolute';
+      badge.style.top = '-9px';
+      badge.style.right = '-9px';
+      badge.style.width = '16px';
+      badge.style.height = '16px';
+      badge.style.fontSize = '11px';
+      badge.style.lineHeight = '1';
+      badge.style.background = '#fff';
+      badge.style.borderRadius = '50%';
+      badge.style.display = 'flex';
+      badge.style.alignItems = 'center';
+      badge.style.justifyContent = 'center';
+      badge.style.boxShadow = '0 0 2px rgba(0,0,0,0.5)';
+      el.appendChild(badge);
+    }
+
     // 名稱標籤：放大到一定程度才顯示，勾選的景點則一律顯示
     const label = document.createElement('span');
     label.className = 'marker-label marker-label-' + (spot.labelSide || 'below');
@@ -348,6 +372,7 @@ const TABS = [
   { cat: 'onmyoji', label: CATEGORY_META.onmyoji.label },
   { cat: 'nobunaga', label: CATEGORY_META.nobunaga.label },
   { cat: 'ujimatcha', label: CATEGORY_META.ujimatcha.label },
+  { cat: 'anime', label: CATEGORY_META.anime.label },
 ];
 
 function renderTabs() {

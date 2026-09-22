@@ -2,6 +2,7 @@
 // categories: 每個景點可以屬於一個或多個分類（陣列）
 //   'temple' 寺與神社 | 'shopping' 穿搭與藥妝 | 'scenic' 美景 | 'shojin' 精進料理
 //   'onmyoji' 動漫迷陰陽師之旅 | 'nobunaga' 軍事迷織田信長之旅 | 'ujimatcha' 宇治抹茶體驗之旅
+//   'anime' 動漫迷巡禮之旅（陰陽師以外的作品）
 //   'stay' 住宿與交通（本次行程的住宿與進出京都的門戶，id 以 b 開頭）
 // address: 選填。有填的話，「在 Google 地圖上看」會改用地址查詢，比用座標精準
 // hours: 選填。營業／開放時間，字串。
@@ -21,6 +22,7 @@ const CATEGORY_META = {
   onmyoji:   { label: '動漫迷陰陽師之旅',   color: '#5b3a8e' },
   nobunaga:  { label: '軍事迷織田信長之旅', color: '#7a1f1f' },
   ujimatcha: { label: '宇治抹茶體驗之旅',   color: '#6b8f3f' },
+  anime:     { label: '動漫迷巡禮之旅',     color: '#c9457a' },
 };
 
 // 預約／申請的三種等級
@@ -265,10 +267,10 @@ const SPOTS = [
     hours:'車站 24 小時（各店家營業時間不一）', desc:'京都對外交通的總樞紐，JR、近鐵、地下鐵與各路線巴士匯集，也是本次住宿的最近車站。' },
 
   // ------- 寺與神社 -------
-  { id:'t01', categories:['temple'], name:'清水寺', area:'東山', lat:34.9948, lng:135.7850,
+  { id:'t01', categories:['temple','anime'], name:'清水寺', area:'東山', lat:34.9948, lng:135.7850,
     hours:'6:00–18:00（夏季延長至 18:30，夜間特別拜觀另計）', desc:'木造舞台懸空於山坡之上，世界文化遺產，可俯瞰京都市街與東山群峰。' },
   { id:'t02', categories:['temple'], name:'地主神社', area:'東山', lat:34.9950, lng:135.7854, hours:'閉門整修中（2022年起社殿修復工事，預計5～6年，目前無法參拜）', desc:'位於清水寺境內，以「戀占い之石」求姻緣聞名，年輕遊客必訪。' },
-  { id:'t03', categories:['temple'], name:'八坂神社', area:'東山・祇園', lat:35.0037, lng:135.7786,
+  { id:'t03', categories:['temple','anime'], name:'八坂神社', area:'東山・祇園', lat:35.0037, lng:135.7786,
     hours:'境內 24 小時開放（社務所 9:00–17:00）', desc:'祇園祭主辦神社，朱紅色西樓門是地標，緊鄰花見小路。' },
   { id:'t04', categories:['temple'], name:'建仁寺', area:'東山・祇園', lat:35.0016, lng:135.7736,
     hours:'10:00–17:00（16:30 截止入場）', desc:'京都最古老的禪寺，收藏俵屋宗達「風神雷神圖」屏風，庭園枯山水寧靜優雅。' },
@@ -294,7 +296,7 @@ const SPOTS = [
   { id:'t19', categories:['temple'], name:'野宮神社', area:'嵐山', lat:35.0157, lng:135.6716, hours:'境內自由參拜（授與所 9:00–17:00）', desc:'黑木鳥居為特色，源氏物語舞台，是竹林小徑的入口。' },
   { id:'t20', categories:['temple'], name:'車折神社', area:'嵐山', lat:35.0117, lng:135.6871, hours:'境內自由參拜（授與所 9:30–17:00）', desc:'藝能人祈願神社，嵐電沿線，鳥居上掛滿藝能界奉納玉垣。' },
   { id:'t21', categories:['temple'], name:'松尾大社', area:'嵐山南', lat:34.9985, lng:135.6836, hours:'5:00–18:00（庭園・神像館 9:00–16:00）', desc:'日本第一酒神信仰，全國釀酒業者朝聖之地。' },
-  { id:'t22', categories:['temple'], name:'金閣寺', area:'洛北', lat:35.0394, lng:135.7292,
+  { id:'t22', categories:['temple','anime'], name:'金閣寺', area:'洛北', lat:35.0394, lng:135.7292,
     hours:'9:00–17:00', desc:'金箔外牆倒映鏡湖池，世界遺產，京都最具代表性的景觀之一。' },
   { id:'t23', categories:['temple'], name:'龍安寺', area:'洛北', lat:35.0345, lng:135.7183,
     hours:'8:00–17:00（12–2 月 8:30–16:30）', desc:'枯山水石庭「十五石庭」舉世聞名，禪意十足。' },
@@ -303,18 +305,18 @@ const SPOTS = [
   { id:'t25', categories:['temple'], name:'妙心寺', area:'洛北', lat:35.0225, lng:135.7186, hours:'法堂 9:00–16:00（受付至15:30）', desc:'臨濟宗大本山，境內有多座可個別參觀的塔頭寺院。' },
   { id:'t26', categories:['temple'], name:'大德寺', area:'洛北', lat:35.0432, lng:135.7477, hours:'境內自由參拜（本坊非公開，各塔頭時間不一）', desc:'與一休禪師淵源深厚，境內多座枯山水庭園塔頭。' },
   { id:'t27', categories:['temple'], name:'上賀茂神社', area:'洛北', lat:35.0602, lng:135.7527, hours:'5:30–17:00（樓門內 8:00–16:45）', desc:'世界遺產，立砂造型獨特，京都最古老神社之一。' },
-  { id:'t28', categories:['temple'], name:'下鴨神社', area:'洛北', lat:35.0392, lng:135.7727,
+  { id:'t28', categories:['temple','anime'], name:'下鴨神社', area:'洛北', lat:35.0392, lng:135.7727,
     hours:'6:30–17:00', desc:'世界遺產，糺之森原始林參道氣氛靜謐莊嚴。' },
   { id:'t29', categories:['temple'], name:'銀閣寺', area:'洛北・左京', lat:35.0270, lng:135.7982,
     hours:'8:30–17:00（12–2 月 9:00–16:30）', desc:'侘寂美學代表，向月台的白砂造景相當獨特。' },
   { id:'t30', categories:['temple'], name:'詩仙堂', area:'洛北・左京', lat:35.0357, lng:135.7975, hours:'9:00–17:00（受付至16:45）', desc:'紅葉名所，鹿威し（添水）的聲響是庭園一大特色。' },
   { id:'t31', categories:['temple'], name:'曼殊院', area:'洛北・左京', lat:35.0399, lng:135.8033, hours:'9:00–17:00', desc:'皇族出身門跡寺院，紅葉時節庭園景致絕美。' },
   { id:'t32', categories:['temple'], name:'圓光寺', area:'洛北・左京', lat:35.0378, lng:135.7994, hours:'9:00–17:00', desc:'十牛之庭紅葉層次豐富，可登高眺望京都市街。' },
-  { id:'t33', categories:['temple'], name:'貴船神社', area:'洛北', lat:35.1219, lng:135.7649, hours:'6:00–20:00', desc:'水神信仰發源地，結社祈求良緣，溪谷石階參道氣氛神秘。' },
+  { id:'t33', categories:['temple','anime'], name:'貴船神社', area:'洛北', lat:35.1219, lng:135.7649, hours:'6:00–20:00', desc:'水神信仰發源地，結社祈求良緣，溪谷石階參道氣氛神秘。' },
   { id:'t34', categories:['temple'], name:'鞍馬寺', area:'洛北', lat:35.1116, lng:135.7735, hours:'9:00–16:00', desc:'天狗傳說與能量景點，可搭乘鞍馬山纜車登山參拜。' },
   { id:'t35', categories:['temple'], name:'三千院', area:'大原', lat:35.1183, lng:135.8296, hours:'9:00–17:00（11月 8:45–16:45，12–2月 9:00–16:30）', desc:'苔庭「有清園」與往生極樂院相映成趣，郊區古剎氛圍濃厚。' },
   { id:'t36', categories:['temple'], name:'寂光院', area:'大原', lat:35.1237, lng:135.8228, hours:'9:00–17:00（12月至16:30）', desc:'平家物語建禮門院隱居之地，寂靜山林深處小寺。' },
-  { id:'t37', categories:['temple'], name:'南禪寺', area:'洛東・岡崎', lat:35.0116, lng:135.7943,
+  { id:'t37', categories:['temple','anime'], name:'南禪寺', area:'洛東・岡崎', lat:35.0116, lng:135.7943,
     hours:'8:40–17:00（12–2 月至 16:30）', desc:'巨大三門氣勢磅礡，境內紅磚水路閣是拍照名景。' },
   { id:'t38', categories:['temple'], name:'永觀堂', area:'洛東・岡崎', lat:35.0146, lng:135.7936,
     hours:'9:00–17:00（16:00 截止入場，秋季夜拜另計）', desc:'有「京都賞楓第一」之稱，回望阿彌陀像獨具特色。' },
@@ -333,7 +335,7 @@ const SPOTS = [
     hours:'5:50–17:30（11–2 月 6:20–16:30）', desc:'真宗大谷派本山，緊鄰京都車站，交通十分方便。' },
   { id:'t47', categories:['temple'], name:'東寺', area:'市中心・南', lat:34.9810, lng:135.7477,
     hours:'金堂・講堂 8:00–17:00（境內 5:00–17:00）', desc:'世界遺產，五重塔是日本現存最高木造塔，京都地標之一。' },
-  { id:'t48', categories:['temple'], name:'伏見稻荷大社', area:'伏見', lat:34.9671, lng:135.7727,
+  { id:'t48', categories:['temple','anime'], name:'伏見稻荷大社', area:'伏見', lat:34.9671, lng:135.7727,
     hours:'境內 24 小時開放（社務所 8:30–16:30）', desc:'千本鳥居綿延山林，全國稻荷神社總本社，24小時開放。' },
   { id:'t49', categories:['temple'], name:'醍醐寺', area:'伏見', lat:34.9505, lng:135.8213, hours:'9:00–17:00（受付至16:30）', desc:'世界遺產，豐臣秀吉晚年舉辦賞花會之地，寺域廣闊。' },
   { id:'t50', categories:['temple','ujimatcha'], name:'平等院', area:'宇治', lat:34.8892, lng:135.8083,
@@ -384,15 +386,15 @@ const SPOTS = [
   { id:'s12', categories:['shopping'], name:'大丸京都店', area:'市中心', lat:35.0044, lng:135.7681, hours:'10:00–20:00（3–7F 至 19:00，8F 餐廳 11:00–22:00）', desc:'地下美食街與藥妝專櫃齊全，百貨式一站購足。' },
 
   // ------- 美景 -------
-  { id:'v01', categories:['scenic'], name:'嵐山竹林小徑', area:'嵐山', lat:35.0169, lng:135.6712, hours:'24 小時開放', desc:'高聳竹林形成的自然隧道，建議清晨8點前造訪避開人潮。' },
-  { id:'v02', categories:['scenic'], name:'渡月橋', area:'嵐山', lat:35.0111, lng:135.6776, hours:'24 小時開放', desc:'嵐山地標，桂川與遠山構成的橋景四季皆美。' },
+  { id:'v01', categories:['scenic','anime'], name:'嵐山竹林小徑', area:'嵐山', lat:35.0169, lng:135.6712, hours:'24 小時開放', desc:'高聳竹林形成的自然隧道，建議清晨8點前造訪避開人潮。' },
+  { id:'v02', categories:['scenic','anime'], name:'渡月橋', area:'嵐山', lat:35.0111, lng:135.6776, hours:'24 小時開放', desc:'嵐山地標，桂川與遠山構成的橋景四季皆美。' },
   { id:'v03', categories:['scenic'], name:'貴船溪谷', area:'洛北', lat:35.1219, lng:135.7649, labelSide:'right', hours:'24 小時開放', desc:'溪流蒼鬱、涼爽宜人，是京都著名的避暑勝地。' },
   { id:'v04', categories:['scenic'], name:'伏見稻荷千本鳥居', area:'伏見', lat:34.9671, lng:135.7727, labelSide:'right', hours:'24 小時開放', desc:'綿延山林的橘紅色鳥居隧道，京都最具代表性的畫面之一。' },
-  { id:'v05', categories:['scenic'], name:'鴨川三角洲（出町柳）', area:'市中心北', lat:35.0296, lng:135.7726, hours:'24 小時開放', desc:'賀茂川與高野川交會處，是當地人休憩、野餐的日常風景。' },
+  { id:'v05', categories:['scenic','anime'], name:'鴨川三角洲（出町柳）', area:'市中心北', lat:35.0296, lng:135.7726, hours:'24 小時開放', desc:'賀茂川與高野川交會處，是當地人休憩、野餐的日常風景。' },
   { id:'v06', categories:['scenic'], name:'蹴上鐵道遺址（Incline）', area:'洛東', lat:35.0092, lng:135.7860, hours:'24 小時開放', desc:'廢棄鐵軌與枕木交織，春天櫻花著稱，平常也是熱門拍照秘境。' },
   { id:'v07', categories:['scenic'], name:'將軍塚青龍殿', area:'洛東山頂', lat:35.0004, lng:135.8025, hours:'9:00–17:00（受付至16:30）', desc:'京都市街展望台，大舞台居高臨下俯瞰全市景觀。' },
   { id:'v08', categories:['scenic'], name:'東寺五重塔倒映水池', area:'市中心・南', lat:34.9810, lng:135.7477, labelSide:'right', hours:'境內 5:00–17:00（金堂・講堂 8:00–17:00，受付至16:30）', desc:'池畔倒影搭配五重塔，是東寺境內經典的攝影構圖。' },
-  { id:'v09', categories:['scenic'], name:'南禪寺水路閣', area:'洛東', lat:35.0111, lng:135.7947, labelSide:'right', hours:'境內自由參拜（方丈庭園・三門 8:40–17:00，受付至16:40）', desc:'紅磚砌成的水道橋，帶有異國風情的建築美感。' },
+  { id:'v09', categories:['scenic','anime'], name:'南禪寺水路閣', area:'洛東', lat:35.0111, lng:135.7947, labelSide:'right', hours:'境內自由參拜（方丈庭園・三門 8:40–17:00，受付至16:40）', desc:'紅磚砌成的水道橋，帶有異國風情的建築美感。' },
   { id:'v10', categories:['scenic'], name:'廣澤池', area:'嵐山北', lat:35.0328, lng:135.6857, hours:'24 小時開放', desc:'嵯峨野三名跡之一，水面寧靜，遊客較少的私房景點。' },
   { id:'v11', categories:['scenic'], name:'大澤池', area:'嵐山', lat:35.0284, lng:135.6768, labelSide:'right', hours:'9:00–16:30（17:00 閉門）', desc:'大覺寺境內，是日本庭園史上最古老的池泉之一。' },
   { id:'v12', categories:['scenic'], name:'哲學之道', area:'洛東', lat:35.0223, lng:135.7965, hours:'24 小時開放', desc:'沿疏水道而行的散步小徑，銀閣寺與南禪寺之間的優美路線。' },
@@ -404,6 +406,12 @@ const SPOTS = [
   { id:'v16', categories:['scenic'], name:'金閣寺鏡湖池倒影', area:'洛北', lat:35.0394, lng:135.7292, labelSide:'right', hours:'9:00–17:00', desc:'金閣倒映水面的經典畫面，是京都最知名的觀光意象之一。' },
   { id:'v17', categories:['scenic'], name:'銀閣寺向月台', area:'洛北・左京', lat:35.0270, lng:135.7982, labelSide:'right', hours:'8:30–17:00（12–2月 9:00–16:30）', desc:'圓錐狀白砂造景與東山借景相映，侘寂美學的代表景觀。' },
   { id:'v18', categories:['scenic'], name:'京都塔夜景', area:'京都車站', lat:34.9856, lng:135.7593, labelSide:'right', hours:'10:00–21:00（最終入場 20:30）', desc:'車站前地標塔樓，登塔展望台可俯瞰京都夜景。' },
+  { id:'v19', categories:['scenic','anime'], name:'先斗町', area:'河原町・祇園', lat:35.0067, lng:135.7717,
+    hours:'24 小時開放（餐廳依店家營業時間）',
+    desc:'鴨川西岸的石板小巷，兩側是傳統京町家餐廳，是京都夜生活的代表街景，也常被動漫作品拿來當京都的街景意象。⚠️沒有查到具體指名以這裡為場景的作品，這點還沒有查證到，先老實說。' },
+  { id:'v20', categories:['scenic','anime'], name:'大吉山展望台', area:'宇治', lat:34.8917, lng:135.8100,
+    hours:'展望台開放時間不限，但⚠️沒有路燈，天黑後禁止上山健行',
+    desc:'俯瞰宇治市街的登山展望台，《吹響吧！上低音號》黃前久美子與高坂麗奈在此眺望夜景的經典場景，是這部作品最知名的聖地巡禮景點。入口到展望台步行約20分鐘。' },
 
   // ------- 宇治抹茶體驗之旅（新增專屬景點）-------
   { id:'u01', categories:['ujimatcha'], name:'中村藤吉本店', area:'宇治', lat:34.8916, lng:135.8073, hours:'10:00–17:30（茶房 L.O. 16:30）', desc:'創業於安政元年的宇治茶老鋪，抹茶生茶凍與抹茶聖代聞名，古民家改建的用餐空間別具風情。' },
