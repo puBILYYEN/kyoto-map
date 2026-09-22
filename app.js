@@ -510,6 +510,14 @@ const TABS = [
   { cat: 'ujimatcha', label: CATEGORY_META.ujimatcha.label },
   { cat: 'anime', label: CATEGORY_META.anime.label },
   { cat: 'shogun', label: CATEGORY_META.shogun.label },
+  { cat: 'kyudo', label: CATEGORY_META.kyudo.label },
+  { cat: 'sado', label: CATEGORY_META.sado.label },
+  { cat: 'kado', label: CATEGORY_META.kado.label },
+  { cat: 'shodo', label: CATEGORY_META.shodo.label },
+  { cat: 'kodo', label: CATEGORY_META.kodo.label },
+  { cat: 'zazen', label: CATEGORY_META.zazen.label },
+  { cat: 'togei', label: CATEGORY_META.togei.label },
+  { cat: 'kimono', label: CATEGORY_META.kimono.label },
 ];
 
 function renderTabs() {
