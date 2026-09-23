@@ -518,6 +518,7 @@ const TABS = [
   { cat: 'zazen', label: CATEGORY_META.zazen.label },
   { cat: 'togei', label: CATEGORY_META.togei.label },
   { cat: 'kimono', label: CATEGORY_META.kimono.label },
+  { cat: 'ninja', label: CATEGORY_META.ninja.label },
 ];
 
 function renderTabs() {
