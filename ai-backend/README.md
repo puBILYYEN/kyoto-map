@@ -38,6 +38,7 @@ Render 支援指定子目錄部署（Root Directory），所以不需要另開�
 | `AI_MODEL` | 模型名稱，依供應商而定 |
 | `ALLOWED_ORIGINS` | `https://kyoto-trip-map.vercel.app` |
 | `RATE_LIMIT` | `20`（可不填） |
+| `TAVILY_API_KEY` | **選填**。設定後導遊能查即時網路資訊（見下面「即時網路搜尋」） |
 
 常見供應商的填法：
 
@@ -60,8 +61,26 @@ Render 支援指定子目錄部署（Root Directory），所以不需要另開�
 https://你的網址.onrender.com/healthz
 ```
 
-- `{"ok":true,"configured":true}` → 成功
-- `configured` 是 `false` → 環境變數沒設好
+- `{"ok":true,"configured":true,"webSearch":true}` → 成功，且已接上 Tavily
+- `configured` 是 `false` → AI 環境變數沒設好
+- `webSearch` 是 `false` → 沒填 `TAVILY_API_KEY`，導遊還是能正常回答，只是查不到即時網路資訊
+
+## 即時網路搜尋（選填，接 Tavily）
+
+導遊原本只會根據自己的訓練資料跟我們的景點資料庫回答，遇到「現在」
+「最新」「今天還開嗎」「天氣」這類需要即時資訊的問題就無能為力。接上
+[Tavily](https://tavily.com) 之後，每次提問都會先幫忙查一次網路，把
+搜尋結果（最多4筆，含標題／摘要／來源網址）附進送給 AI 的內容，讓它
+優先參考比較新的資料回答，但還是會照 system prompt 的規則，覺得來源
+可疑就老實說「請再確認」，不會照單全收。
+
+啟用方式：到 [tavily.com](https://tavily.com) 註冊拿免費 API Key，
+填進 Render 的 `TAVILY_API_KEY` 環境變數即可，不用改任何程式碼。
+
+- **完全選填**：沒填這個變數，功能就是安靜地跳過，跟原本行為一模一樣
+- 查詢失敗或逾時（8秒）也是安靜跳過，不會讓整個問答掛掉
+- `/healthz` 的 `webSearch` 欄位可以確認有沒有接上（`true`／`false`）
+- 金鑰一樣只存在環境變數，不會出現在前端或進 git
 
 ## 免費方案的限制
 

@@ -16,6 +16,10 @@ const AI_BASE_URL = (process.env.AI_BASE_URL || '').replace(/\/+$/, '');
 const AI_API_KEY = process.env.AI_API_KEY || '';
 const AI_MODEL = process.env.AI_MODEL || 'auto/best-free';
 
+// Tavily：讓導遊能查到最新的網路資訊（例如營業時間異動、臨時公休、天氣）。
+// 選填——沒設定這個環境變數的話，功能就是安靜地跳過，不影響原本的問答。
+const TAVILY_API_KEY = process.env.TAVILY_API_KEY || '';
+
 // 大部分供應商的路徑都是 <base>/v1/chat/completions，但不是全部
 // （例如 Gemini 是 /v1beta/openai/chat/completions）。
 // 不合慣例的就用 AI_CHAT_URL 直接指定完整網址。
@@ -98,7 +102,15 @@ const SYSTEM_PROMPT = `你是一位在京都帶團多年的台灣導遊，正在
 - 這個標記會被系統自動拿掉、使用者看不到，所以前面的文字說明還是要
   完整交代清楚你為什麼推薦這些地方，不能只丟標記不解釋。
 - 使用者隨時可以自己把加進去的景點移除，不用因為怕加錯而不敢建議，
-  但一次不要建議超過 5 個，太多反而讓人不知道從何看起。`;
+  但一次不要建議超過 5 個，太多反而讓人不知道從何看起。
+
+網路即時搜尋結果：
+- 狀態裡若附上「網路即時搜尋結果」，那是剛從網路查到的資料，時效性比你
+  自己記憶中的資料或景點資料庫都新，遇到「現在」「最新」「今天」「還開嗎」
+  「天氣」這類問題，或資料庫沒收錄的地方，優先參考這個。
+- 網路搜尋結果來源不一定可靠，還是要用你的判斷，覺得可疑就照樣老實說
+  「請再確認」，不要照單全收。
+- 沒有附上這段的話，就照原本的方式回答，不用特別提「沒有網路搜尋結果」。`;
 
 function send(res, status, body, origin) {
   const headers = {
@@ -131,6 +143,45 @@ function readBody(req, limitBytes = 32 * 1024) {
   });
 }
 
+// 用 Tavily 查即時網路資訊。選填功能：沒設定金鑰、查詢失敗、或逾時，
+// 都只是安靜地回傳 null，讓導遊照原本沒有網路搜尋的方式回答，
+// 不會因為這個附加功能而讓整個問答掛掉。
+async function searchWeb(query) {
+  if (!TAVILY_API_KEY) return null;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: TAVILY_API_KEY,
+        query,
+        search_depth: 'basic',
+        max_results: 4,
+      }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      console.warn('[Tavily] HTTP', res.status);
+      return null;
+    }
+    const data = await res.json();
+    const results = Array.isArray(data.results) ? data.results : [];
+    if (!results.length) return null;
+
+    return results.slice(0, 4).map(r =>
+      `- ${r.title || '(無標題)'}：${(r.content || '').slice(0, 300)}（來源：${r.url}）`
+    ).join('\n');
+  } catch (err) {
+    console.warn('[Tavily] 查詢失敗：', err.message);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function askAI({ question, context, history }) {
   const messages = [{ role: 'system', content: SYSTEM_PROMPT }];
 
@@ -139,8 +190,13 @@ async function askAI({ question, context, history }) {
     if (turn && typeof turn.a === 'string') messages.push({ role: 'assistant', content: turn.a.slice(0, 2000) });
   }
 
-  const userContent = context
-    ? `【目前畫面狀態】\n${String(context).slice(0, 6000)}\n\n【問題】\n${question}`
+  const webResults = await searchWeb(question);
+  const contextParts = [];
+  if (context) contextParts.push(String(context).slice(0, 6000));
+  if (webResults) contextParts.push('【網路即時搜尋結果】\n' + webResults);
+
+  const userContent = contextParts.length
+    ? `【目前畫面狀態】\n${contextParts.join('\n\n')}\n\n【問題】\n${question}`
     : question;
   messages.push({ role: 'user', content: userContent });
 
@@ -212,6 +268,7 @@ const server = http.createServer(async (req, res) => {
       configured: AI_READY,
       model: AI_MODEL,
       endpoint: AI_CHAT_URL || null,   // 只回報網址，金鑰絕不外流
+      webSearch: !!TAVILY_API_KEY,     // 有沒有接 Tavily，同樣不回報金鑰本身
     }, allowed || '*');
   }
 
