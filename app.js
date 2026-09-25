@@ -1,5 +1,11 @@
 // ===== 京都行程景點地圖 app.js =====
 
+// 系統記錄（logger.js）。用 function 宣告（會被提升），任何地方呼叫都不會踩到 TDZ；
+// logger.js 萬一沒載入成功，這裡就什麼都不做，不會拖垮網站。
+function appLog(level, tag, msg) {
+  if (typeof window.sysLog === 'function') window.sysLog(level, tag, msg);
+}
+
 let activeCategory = 'all';
 let searchTerm = '';
 let bookingOnly = false;  // 只顯示需要預約或事前申請的景點
@@ -102,6 +108,9 @@ if (map) {
   // 就連一個標記都不會出現。現在立刻畫，底圖有沒有來都不影響。
   renderMarkers();
   fitToVisibleSpots();
+  appLog('info', '地圖', `標記已畫出 ${Object.keys(markers).length} / ${SPOTS.length} 個`);
+
+  map.on('load', () => appLog('info', '地圖', '底圖樣式載入完成'));
 
   // 連線圖層屬於地圖樣式的一部分，這個才真的要等 load
   map.on('load', () => {
@@ -565,6 +574,7 @@ function renderTabs() {
     select.appendChild(opt);
   });
   select.addEventListener('change', () => {
+    appLog('info', 'ui', `切換分類 → ${select.value}`);
     activeCategory = select.value;
     renderList();
     updateMarkerVisibility();
@@ -623,6 +633,7 @@ function showDetail(spotId) {
   activeSpotId = spotId;
   const spot = SPOTS.find(s => s.id === spotId);
   const panel = document.getElementById('detailBody');
+  appLog('info', 'ui', `開啟景點 ${spotId}${spot ? ' ' + spot.name : '（找不到這個 id）'}`);
   if (!spot) {
     panel.innerHTML = '<div class="detail-placeholder">點選左側清單或地圖上的標記，查看景點詳細介紹</div>';
     return;
@@ -657,6 +668,7 @@ function toggleSelect(spotId) {
   } else {
     selectedIds.push(spotId);
   }
+  appLog('info', 'select', `${idx >= 0 ? '取消' : '勾選'} ${spotId}，目前共 ${selectedIds.length} 個：${selectedIds.join(',')}`);
   renderList();
   renderSelection();
   updateMarkerVisibility();
@@ -822,6 +834,7 @@ function buildBookingBox(spot) {
 
 // 行前準備（證件與線上登錄），不屬於任何景點
 function showPrep() {
+  appLog('info', 'ui', '開啟「行前準備」');
   activeSpotId = null;
   document.getElementById('detailBody').innerHTML = `
     <div class="detail-header"><h2>${TRIP_PREP.title}</h2></div>
@@ -839,6 +852,7 @@ function showPrep() {
 
 // 日語求助小抄
 function showPhrases() {
+  appLog('info', 'ui', '開啟「日語小抄」');
   activeSpotId = null;
   const a = PHRASES.address;
   document.getElementById('detailBody').innerHTML = `
@@ -885,6 +899,7 @@ function showPhrases() {
 
 // 退稅小幫手：結帳前播放／出示日語，結帳後照清單勾一次，確保真的辦到免稅
 function showTaxRefund() {
+  appLog('info', 'ui', '開啟「退稅小幫手」');
   activeSpotId = null;
   const p = TAX_REFUND.phrase;
   document.getElementById('detailBody').innerHTML = `
@@ -944,6 +959,7 @@ function buildTransitUrl(a, b) {
 }
 
 document.getElementById('clearSelection').addEventListener('click', () => {
+  appLog('info', 'select', `按「清除選取」，清掉 ${selectedIds.length} 個：${selectedIds.join(',')}`);
   selectedIds = [];
   renderList();
   renderSelection();
@@ -1060,6 +1076,7 @@ function parseListFromHash(hash) {
 function applyListFromUrl() {
   const ids = parseListFromHash(location.hash);
   if (!ids || !ids.length) return;
+  appLog('info', 'select', `從分享連結載入清單 ${ids.length} 個（原本 ${selectedIds.length} 個被取代）：${ids.join(',')}`);
   selectedIds = ids;
   renderList();
   renderSelection();
@@ -1299,6 +1316,7 @@ async function loadOrCreateMemberDoc(user) {
       // 避免蓋掉使用者這台裝置上正在選、還沒同步的東西
       if (claimed && Array.isArray(claimed.spotIds) && claimed.spotIds.length && !selectedIds.length) {
         selectedIds = claimed.spotIds.filter(id => SPOTS.some(s => s.id === id));
+        appLog('info', 'select', `登入後接回舊名字「${claimed.name}」的選點 ${selectedIds.length} 個`);
         renderList();
         renderSelection();
         updateMarkerVisibility();
@@ -1600,6 +1618,7 @@ async function pushMemberDoc() {
       { name, color, spotIds, updatedAt: db.serverTimestamp() }
     );
     logMemberEvent('sync', id, name, { spotCount: spotIds.length });
+    appLog('info', '跳棋', `上傳我的選點成功（${name}，${spotIds.length} 個）`);
   } catch (err) {
     console.warn('[跳棋] 同步失敗，下次選點變動時會再試一次：', err);
   }
@@ -1657,6 +1676,7 @@ async function startMembersListener() {
           if (memberIdentity && docSnap.id === memberIdentity.id) return;   // 自己已經用原本的圓點+號碼顯示，不用重複疊一次
           next[docSnap.id] = docSnap.data();
         });
+        logOthersChange(othersState, next);
         othersState = next;
         renderOthersList();
         renderMemberPawns();
@@ -1669,6 +1689,23 @@ async function startMembersListener() {
     membersListening = false;
     console.warn('[跳棋] 無法連上即時同步：', err);
   }
+}
+
+// 家人的選點數量有變化才記一筆（例如「哥 5→0」），之前「選點突然不見」
+// 這類問題，看記錄就知道是哪個時間點、哪個人的資料被改掉的。
+function logOthersChange(prev, next) {
+  const count = (m) => (m && Array.isArray(m.spotIds) ? m.spotIds.length : 0);
+  const changes = [];
+  Object.keys(next).forEach(id => {
+    const before = prev[id] ? count(prev[id]) : null;
+    const after = count(next[id]);
+    if (before === null) changes.push(`${next[id].name || id} 出現(${after})`);
+    else if (before !== after) changes.push(`${next[id].name || id} ${before}→${after}`);
+  });
+  Object.keys(prev).forEach(id => {
+    if (!next[id]) changes.push(`${prev[id].name || id} 消失(原本${count(prev[id])})`);
+  });
+  if (changes.length) appLog('info', '跳棋', `家人選點變化：${changes.join('、')}`);
 }
 
 // 先用本機快取的身份立刻顯示，避免整頁一開始閃一下「尚未登入」，
@@ -1686,6 +1723,7 @@ async function initMemberAuth() {
       console.warn('[跳棋] 讀取登入導向結果失敗：', err);
     }
     auth.onAuthStateChanged(auth.instance, (user) => {
+      appLog('info', '跳棋', user ? 'Google 登入狀態：已登入' : 'Google 登入狀態：未登入');
       if (!user) {
         if (memberIdentity) { memberIdentity = null; saveMemberIdentity(); renderMemberBox(); }
         return;
@@ -1704,9 +1742,13 @@ initMemberAuth();
 // 註冊 Service Worker，讓網站在沒有網路時仍然打得開
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(err => {
-      console.warn('Service Worker 註冊失敗，離線功能無法使用：', err);
-    });
+    navigator.serviceWorker.register('sw.js')
+      .then(() => appLog('info', 'sw', `離線快取已註冊（${navigator.serviceWorker.controller ? '已接管此頁' : '第一次安裝，下次開啟才接管'}）`))
+      .catch(err => {
+        console.warn('[sw] Service Worker 註冊失敗，離線功能無法使用：', err);
+      });
+    // 新版 sw.js 接管時記一筆，方便對照「更新後才出問題」這類狀況
+    navigator.serviceWorker.addEventListener('controllerchange', () => appLog('info', 'sw', '新版離線快取已接管'));
   });
 }
 
@@ -2046,6 +2088,7 @@ function renderChatSuggestions() {
 function openChat() {
   const overlay = chatEl('chatOverlay');
   if (!overlay.hidden) return;
+  appLog('info', 'ui', '開啟「線上導遊」');
   overlay.hidden = false;
   if (!chatEl('chatMsgs').children.length) {
     addChatMessage('bot', AI_CONFIG.greeting);
@@ -2101,6 +2144,7 @@ function applyGuideSuggestions(ids) {
 async function sendToGuide(text) {
   const question = (text || '').trim();
   if (!question || chatState.busy) return;
+  appLog('info', '導遊', `提問：${question.slice(0, 60)}`);
 
   addChatMessage('user', question);
   chatEl('chatText').value = '';
@@ -2158,6 +2202,7 @@ async function sendToGuide(text) {
     thinking.remove();
     console.warn('[導遊] 失敗：', err);
     const code = err.code || (err.name === 'AbortError' ? 'E4' : 'E3');
+    appLog('warn', '導遊', `回答失敗，畫面顯示代號 ${code}`);
     addChatMessage('bot', guideErrorMessage(code), 'chat-msg-warn');
   } finally {
     chatState.busy = false;

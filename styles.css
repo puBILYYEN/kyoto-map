@@ -246,6 +246,15 @@ html, body {
   color: var(--text-muted);
 }
 
+/* 系統記錄下載（給 AI 除錯用） */
+.syslog-box {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+.syslog-box .share-btn { width: 100%; }
+.syslog-note { margin: 6px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--text-muted); }
+
 .map-area {
   flex: 1;
   position: relative;

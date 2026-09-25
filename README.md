@@ -18,11 +18,24 @@
 ```
 kyoto-map/
 ├── index.html   ← 網頁主體
+├── logger.js    ← 系統記錄（.log），第一個載入，出錯時匯出給 AI 除錯
 ├── styles.css   ← 樣式
 ├── app.js       ← 互動邏輯（地圖、清單、選取、路線連結）
 ├── data.js      ← 景點資料庫（可自行增修）
+├── sw.js        ← 離線快取（每次部署 VERSION 要加 1）
+├── HANDOFF.md   ← 給接手維修的 AI 看的完整說明（CLAUDE.md / GEMINI.md / AGENTS.md 都指向它）
 └── README.md    ← 這份說明
 ```
+
+## 系統記錄（網站出問題時）
+
+「已選景點」區塊最下面有「🪵 下載系統記錄（.log）」按鈕（手機在下方「✅ 已選」分頁）。
+網站出現怪狀況時按一下，把下載的 `.log` 檔傳給 AI（Claude、Gemini 都可以），
+AI 就能從記錄裡看到當時發生了什麼事：哪一步出錯、選點什麼時候被改掉、網路有沒有斷。
+
+- 記錄只存在**這支手機**裡，不會上傳，所以要看誰的問題就用誰的手機匯出。
+- 就算網站主程式整個當掉，這個按鈕也還按得到。
+- 接手的 AI 請先讀 [`HANDOFF.md`](HANDOFF.md)。
 
 沒有任何 build 流程、沒有 package.json，純 HTML/CSS/JS，Vercel 會自動當成靜態網站部署。
 

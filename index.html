@@ -62,6 +62,11 @@
           </div>
 
           <button id="clearSelection" class="clear-btn">清除選取</button>
+
+          <div class="syslog-box">
+            <button type="button" id="sysLogBtn" class="share-btn">🪵 下載系統記錄（.log）</button>
+            <p class="syslog-note">網站出怪狀況時按這個，把檔案傳給 AI，它就能查出哪裡壞掉。</p>
+          </div>
         </div>
       </aside>
 
@@ -122,6 +127,8 @@
     </nav>
   </div>
 
+  <!-- logger.js 一定要排第一個，後面任何檔案出錯才記得到 -->
+  <script src="logger.js"></script>
   <script src="vendor/maplibre-gl.js"></script>
   <script src="data.js"></script>
   <script src="kyoto-border.js"></script>
