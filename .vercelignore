@@ -1,3 +1,6 @@
 # 這個資料夾是給 Render 用的後端，與 Vercel 的靜態網站無關。
 # 明確排除，確保 Vercel 不會因為看到 package.json 而誤以為需要 build。
 ai-backend/
+
+# 給 AI 接手用的檢查工具，不需要部署到網站
+tools/

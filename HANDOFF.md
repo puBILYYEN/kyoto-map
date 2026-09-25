@@ -43,6 +43,7 @@
 | `sw.js` | Service Worker（離線快取）。**每次改任何前端檔案都要把 `VERSION` 加 1** | 每次部署 |
 | `VERSION.txt` | 更新紀錄，新的寫在最上面，格式「版本：vN」 | 每次部署 |
 | `kyoto-border.js` | 京都府府界的 GeoJSON（地圖上的邊界線） | 幾乎不用動 |
+| `tools/check.js` | **改完必跑的自動檢查**（`node tools/check.js`），不會部署到網站 | 加新的資料欄位或新檔案時 |
 | `README.md` | 給人看的說明，含 **Firestore 安全規則全文**、Firebase 設定步驟 | 改到 Firebase 時 |
 | `docs/*.mmd` | 架構圖（Mermaid），GitHub 會直接畫出來 | 架構大改時 |
 | `ai-backend/` | 線上導遊後端（Node，零套件），部署在 Render；`.vercelignore` 把它排除在 Vercel 外 | 導遊壞掉時 |
@@ -55,12 +56,14 @@
 ## 3. 部署流程（每次改完都照做）
 
 ```bash
-# 1. 在開發分支上改、檢查
-node --check data.js && node --check app.js && node --check logger.js
+# 1. 在開發分支上改
 
 # 2. sw.js 的 VERSION 加 1（例如 'v69' → 'v70'），VERSION.txt 最上面加一筆新紀錄
 
-# 3. commit、push 開發分支，再快轉合併到 main（main 一 push 就自動上線）
+# 3. 跑自動檢查，有 ❌ 就不准 commit（語法、資料格式、簡體字、檔案截斷、忘記加版號都會抓）
+node tools/check.js
+
+# 4. commit、push 開發分支，再快轉合併到 main（main 一 push 就自動上線）
 git add <改過的檔案>
 git commit -m "說明這次改了什麼"
 git push -u origin <開發分支>
@@ -110,17 +113,15 @@ git checkout <開發分支>
 
 只改一邊：下拉選單不會出現，或畫面直接壞掉（`CATEGORY_META[c]` 是 undefined）。
 
-### 快速驗證資料沒寫壞（不需要瀏覽器）
+### 快速驗證沒寫壞（不需要瀏覽器、不需要安裝套件）
 
 ```bash
-node -e "
-const s=require('fs').readFileSync('data.js','utf8');
-eval(s.replace(/const (CATEGORY_META|BOOKING_META|TRIP_PREP|SPOTS)/g,'global.\$1'));
-const ids=SPOTS.map(x=>x.id);
-console.log('景點數', SPOTS.length, '重複id', ids.filter((x,i)=>ids.indexOf(x)!==i));
-const miss=new Set(); SPOTS.forEach(x=>x.categories.forEach(c=>{if(!CATEGORY_META[c])miss.add(c)}));
-console.log('未定義的分類', [...miss]);"
+node tools/check.js
 ```
+
+會檢查：JS 語法、id 重複、缺欄位、分類不存在、座標超出關西範圍（經緯度寫反）、
+分類只加了一邊、簡體字、`index.html` 載入順序、`sw.js` 快取清單，
+以及跟上一次 commit 比：**景點數變少、檔案突然縮水超過 20%（整份重寫被截斷）、前端改了但沒加版號**。
 
 ---
 
@@ -174,7 +175,31 @@ console.log('未定義的分類', [...miss]);"
 
 ---
 
-## 7. 跟使用者溝通的原則
+## 7. 給 Ornith-1.5 及其他開源／較小模型的特別規則
+
+Ornith-1.5（2026/8 發布的開源模型，397B / 35B / 9B，另有手機用的 9B-Mobile）
+社群實測有三個弱點，剛好都會傷到這個專案。**不管你是哪個模型，照這幾條做都比較安全。**
+
+1. **一次只改一小段，絕對不要把整個檔案重新輸出一次。**
+   `app.js` 有兩千多行、`data.js` 近九百行，而實測 Ornith-1.5 產生超過約 80 行的程式碼時容易陷入重複迴圈，
+   結果就是檔案被截斷或塞滿重複內容，整個網站壞掉。
+   做法：找到要改的那幾行 → 只換掉那幾行；新增景點就只插入那一行。
+2. **一律繁體中文、台灣用語。** Ornith-1.5 常會冒出簡體字和大陸用語。
+   `tools/check.js` 會抓簡體字，但抓不到用語，請自己對照：
+   視頻→影片、信息→資訊、軟件→軟體、質量→品質、默認→預設、網絡→網路、打車→叫計程車、地鐵→捷運／地下鐵。
+3. **改完一定跑 `node tools/check.js`。** 有 ❌ 就不准 commit。
+   看到「行數少了超過 20%」→ 用 `git checkout -- 檔名` 還原，重新用小範圍修改的方式再做一次。
+4. **沒把握就停下來問使用者**，特別是這幾塊：Firestore 安全規則、Google 登入流程、`sw.js` 的快取邏輯。
+   這幾塊改錯會讓全家人的資料不同步或網站打不開，而且不容易從畫面上看出來。
+5. **用對版本。** 要接手改程式，請用 397B 或 35B，並接上能讀寫檔案、執行指令的 agent 工具（透過 OpenAI 相容 API）。
+   手機上的 9B-Mobile **只適合看 .log、聊天討論原因**，不能改程式、不能 push；
+   手機版能讀的內容有限，貼 .log 時貼開頭的「#」說明區塊加最後 100 行就好。
+6. **架設的人注意**：Ornith-1.5 的工具呼叫預設可能用 Markdown 程式碼區塊包住 JSON，導致解析失敗，
+   system prompt 裡要加「工具呼叫請輸出純 JSON，不要用程式碼區塊包起來」。
+
+---
+
+## 8. 跟使用者溝通的原則
 
 - 一律**繁體中文**，用新手聽得懂的話，專有名詞要解釋。
 - **不造假**：營業時間、票價、規定查不到或不確定就寫「不確定／以官網為準」，不要編。

@@ -140,6 +140,13 @@
     lines.push('#');
     lines.push('# 【給接手的 AI】先讀 GitHub repo puBILYYEN/kyoto-map 根目錄的 HANDOFF.md，');
     lines.push('# 裡面有整個系統的架構、部署流程、以前出過的 bug 與除錯方法。');
+    lines.push('# 讀不到 GitHub 的話（例如在手機上離線使用），至少先知道這幾件事：');
+    lines.push('#   - 純靜態網頁：logger.js → maplibre → data.js（景點資料）→ app.js（所有功能），沒有 build');
+    lines.push('#   - 「Cannot access X before initialization」＝ app.js 的 TDZ：renderMarkers() 很早執行，');
+    lines.push('#     它用到的 const/let 要搬到 app.js 最上面。地圖標記 0 個通常就是這個');
+    lines.push('#   - 「permission-denied」＝ Firestore 安全規則擋住，規則要使用者自己到 Firebase Console 發布');
+    lines.push('#   - 「跳棋 家人選點變化：某人 N→0」＝ 那個時間點那個人的雲端資料變成 0，對照前後的 select 記錄');
+    lines.push('#   - 回答使用者一律用繁體中文、台灣用語');
     lines.push('#');
     lines.push('# 格式：時間(UTC) ｜ 工作階段 ｜ 等級 ｜ 標籤 ｜ 訊息');
     lines.push('#   工作階段 = 每次開網頁隨機產生的代號，代號換了就代表重新整理或重開了網頁');
