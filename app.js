@@ -1063,6 +1063,7 @@ async function getFirestore() {
 
 shareEl('shareLinkBtn').addEventListener('click', shareByLink);
 shareEl('shareClose').addEventListener('click', () => closeShare());
+shareEl('memberLogBtn').addEventListener('click', showMemberLog);
 
 // ---------- 跳棋：即時顯示每個人選了什麼（Firebase Firestore）----------
 // 跟上面「共享清單」不一樣：那個要手動存、手動開才看得到對方的清單；
@@ -1077,6 +1078,22 @@ shareEl('shareClose').addEventListener('click', () => closeShare());
 
 const MEMBER_KEY = 'kyotoMemberIdentity';
 let memberIdentity = loadMemberIdentity();   // { id, name, color } 或 null
+
+// 這個瀏覽器/裝置的隨機代號，只是為了除錯記錄能分辨「是同一支手機還是
+// 不同裝置在寫同一個名字」，不是身份驗證，換瀏覽器或清資料就會變新的。
+const DEVICE_KEY = 'kyotoDeviceId';
+function getDeviceId() {
+  try {
+    let id = localStorage.getItem(DEVICE_KEY);
+    if (!id) {
+      id = 'dev-' + Math.random().toString(36).slice(2, 8);
+      localStorage.setItem(DEVICE_KEY, id);
+    }
+    return id;
+  } catch (err) {
+    return 'dev-unknown';
+  }
+}
 let membersListening = false;
 let memberSyncTimer = null;
 
@@ -1132,11 +1149,13 @@ async function setupMemberIdentity() {
 // 要刪除的話一定要按這個按鈕，自己確認才會刪。
 async function deleteMemberIdentity() {
   if (!memberIdentity) return;
-  if (!confirm(`確定要刪除跳棋身份「${memberIdentity.name}」嗎？其他家人會看不到這個身份的選點。`)) return;
+  const { id, name } = memberIdentity;
+  if (!confirm(`確定要刪除跳棋身份「${name}」嗎？其他家人會看不到這個身份的選點。`)) return;
 
   try {
     const db = await getFirestore();
-    await db.deleteDoc(db.doc(db.instance, 'trips', SHARE_CONFIG.tripId, 'members', memberIdentity.id));
+    await db.deleteDoc(db.doc(db.instance, 'trips', SHARE_CONFIG.tripId, 'members', id));
+    logMemberEvent('delete', id, name, {});
   } catch (err) {
     console.warn('[跳棋] 刪除失敗：', err);
     alert('刪除失敗，請確認網路連線後再試一次。');
@@ -1309,21 +1328,83 @@ function scheduleMemberSync() {
   memberSyncTimer = setTimeout(pushMemberDoc, 800);
 }
 
-async function pushMemberDoc() {
-  if (!memberIdentity) return;
+// 除錯用的同步記錄：每次成功寫入/刪除都留一筆，這樣之後「選點怎麼不見了」
+// 才查得出來是誰、用哪台裝置、什麼時候把資料改成這樣，而不是只能猜。
+// 只負責留記錄，寫失敗不影響原本的同步功能（try/catch 吞掉錯誤）。
+// memberId/name 一定要用呼叫端當下already算好的值傳進來，不要在這裡重新
+// 讀取外層的 memberIdentity——這個函式沒有 await 呼叫端，執行到一半時
+// memberIdentity 可能已經被呼叫端改掉（例如刪除身份時設成 null），
+// 曾經因此讓 delete 記錄的名字整個是空的。
+async function logMemberEvent(action, memberId, name, extra) {
   try {
     const db = await getFirestore();
-    await db.setDoc(
-      db.doc(db.instance, 'trips', SHARE_CONFIG.tripId, 'members', memberIdentity.id),
+    await db.addDoc(
+      db.collection(db.instance, 'trips', SHARE_CONFIG.tripId, 'memberLogs'),
       {
-        name: memberIdentity.name,
-        color: memberIdentity.color,
-        spotIds: selectedIds.slice(0, MAX_SHARED_SPOTS),
-        updatedAt: db.serverTimestamp(),
+        action,                                   // 'sync' | 'delete'
+        memberId,
+        name,
+        deviceId: getDeviceId(),
+        at: db.serverTimestamp(),
+        ...extra,
       }
     );
   } catch (err) {
+    console.warn('[跳棋] 記錄寫入失敗（不影響同步本身）：', err);
+  }
+}
+
+async function pushMemberDoc() {
+  if (!memberIdentity) return;
+  const { id, name, color } = memberIdentity;
+  const spotIds = selectedIds.slice(0, MAX_SHARED_SPOTS);
+  try {
+    const db = await getFirestore();
+    await db.setDoc(
+      db.doc(db.instance, 'trips', SHARE_CONFIG.tripId, 'members', id),
+      { name, color, spotIds, updatedAt: db.serverTimestamp() }
+    );
+    logMemberEvent('sync', id, name, { spotCount: spotIds.length });
+  } catch (err) {
     console.warn('[跳棋] 同步失敗，下次選點變動時會再試一次：', err);
+  }
+}
+
+// 拉出最近的同步記錄給使用者自己看，不用等人在旁邊查 Firestore 主控台
+async function showMemberLog() {
+  const panel = shareEl('memberLogPanel');
+  if (!panel) return;
+  if (!panel.hidden) { panel.hidden = true; return; }
+
+  panel.hidden = false;
+  panel.textContent = '讀取中…';
+  try {
+    const db = await getFirestore();
+    const snap = await db.getDocs(db.query(
+      db.collection(db.instance, 'trips', SHARE_CONFIG.tripId, 'memberLogs'),
+      db.orderBy('at', 'desc'),
+      db.limit(40)
+    ));
+    if (snap.empty) {
+      panel.textContent = '目前還沒有同步記錄。';
+      return;
+    }
+    const rows = [];
+    snap.forEach(docSnap => {
+      const d = docSnap.data();
+      const t = d.at && d.at.toDate ? d.at.toDate().toLocaleString('zh-TW', { hour12: false }) : '（時間未知）';
+      const who = d.name || d.memberId || '（未知）';
+      const dev = d.deviceId ? d.deviceId.slice(0, 10) : '（未知裝置）';
+      if (d.action === 'delete') {
+        rows.push(`${t}｜${dev}｜${who}｜🗑️ 刪除了跳棋身份`);
+      } else {
+        rows.push(`${t}｜${dev}｜${who}｜同步了 ${d.spotCount ?? '?'} 個景點`);
+      }
+    });
+    panel.textContent = rows.join('\n');
+  } catch (err) {
+    panel.textContent = '讀取失敗，請確認網路連線，或 Firestore 規則是否已加上 memberLogs（見 README）。';
+    console.warn('[跳棋] 讀取記錄失敗：', err);
   }
 }
 

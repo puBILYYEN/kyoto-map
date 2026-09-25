@@ -698,6 +698,22 @@ html, body {
 .joint-dots { display: flex; gap: 3px; flex-shrink: 0; }
 .joint-dots .member-dot { width: 12px; height: 12px; }
 
+.member-log-panel {
+  margin-top: 6px;
+  padding: 8px;
+  border-radius: 6px;
+  background: #f4efe8;
+  font-family: 'SF Mono', 'Consolas', monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 /* 問路小工具 */
 .ask-overlay {
   position: fixed;
