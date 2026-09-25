@@ -339,11 +339,19 @@ function renderMarkers() {
     const el = document.createElement('div');
     el.style.width = '16px';
     el.style.height = '16px';
-    el.style.borderRadius = '50%';
-    el.style.border = '2px solid #fff';
-    el.style.boxShadow = '0 0 3px rgba(0,0,0,0.4)';
     el.style.background = CATEGORY_META[spot.categories[0]].color;
     el.style.cursor = 'pointer';
+    if (spot.shape === 'triangle') {
+      // 三角形用來特別標出單一景點，不影響其他景點的圓點樣式。
+      // clip-path 裁切後 border/box-shadow 不會照著形狀跑，改用
+      // 疊兩層白色 drop-shadow 模擬白色外框，再疊一層深色陰影立體感。
+      el.style.clipPath = 'polygon(50% 0%, 0% 100%, 100% 100%)';
+      el.style.filter = 'drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff) drop-shadow(0 1px 2px rgba(0,0,0,0.5))';
+    } else {
+      el.style.borderRadius = '50%';
+      el.style.border = '2px solid #fff';
+      el.style.boxShadow = '0 0 3px rgba(0,0,0,0.4)';
+    }
     // 名稱標籤用 position:absolute 定位，不需要再手動設父層 position——
     // MapLibre 自己的 .maplibregl-marker 規則本來就是 position:absolute，
     // 已經是子層的定位基準。手動覆寫成 relative 會蓋掉 MapLibre 的絕對定位，
