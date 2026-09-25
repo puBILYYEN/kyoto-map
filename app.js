@@ -339,25 +339,22 @@ function renderMarkers() {
     const el = document.createElement('div');
     el.style.width = '16px';
     el.style.height = '16px';
-    el.style.background = CATEGORY_META[spot.categories[0]].color;
     el.style.cursor = 'pointer';
-    if (spot.shape === 'triangle') {
-      // 三角形用來特別標出單一景點，不影響其他景點的圓點樣式。
-      // clip-path 裁切後 border/box-shadow 不會照著形狀跑，改用
-      // 疊兩層白色 drop-shadow 模擬白色外框，再疊一層深色陰影立體感。
-      el.style.clipPath = 'polygon(50% 0%, 0% 100%, 100% 100%)';
-      el.style.filter = 'drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff) drop-shadow(0 1px 2px rgba(0,0,0,0.5))';
-    } else if (spot.shape === 'star') {
-      // 星形一樣用 clip-path，五角星的座標；同理不用 border/box-shadow
-      // 改用 drop-shadow 模擬白色外框。強制最上層的 z-index 交給
-      // updateMarkerVisibility() 統一處理，這裡只管形狀本身。
-      // 顏色改用亮黃色（蓋掉原本分類色）＋持續閃爍動畫，比其他景點更搶眼，
-      // 對應「常常被蓋住找不到」的問題。
-      el.style.clipPath = 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)';
-      el.style.filter = 'drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff) drop-shadow(0 1px 2px rgba(0,0,0,0.5))';
-      el.style.background = '#ffcc00';
-      el.classList.add('marker-blink');
+    if (spot.shape === 'triangle' || spot.shape === 'star') {
+      // ⚠️ 三角形／星形不能直接把 clip-path 設在 el 本身：clip-path 會
+      // 把「這個元素連同它所有子層」一起裁切成那個形狀範圍，而名稱標籤
+      // 是用 top:100% 定位在 el 框框「外面」（見下面 .marker-label 的
+      // 說明），一旦 el 被裁切，框外的標籤跟著被整個裁掉、憑空消失——
+      // 這是「星形/三角形上的文字標籤跟介紹都不見了」這個 bug 的成因。
+      // 改成用 .marker-shape-triangle/star 這兩個 CSS class 搭配
+      // ::before 偽元素來畫形狀，形狀只裁切 ::before 自己，el 本身連同
+      // 上面的名稱標籤、徽章、選取後的順序數字都完全不受影響。
+      el.style.background = 'transparent';
+      el.classList.add(spot.shape === 'triangle' ? 'marker-shape-triangle' : 'marker-shape-star');
+      el.style.setProperty('--marker-shape-bg', spot.shape === 'star' ? '#ffcc00' : CATEGORY_META[spot.categories[0]].color);
+      if (spot.shape === 'star') el.classList.add('marker-blink');
     } else {
+      el.style.background = CATEGORY_META[spot.categories[0]].color;
       el.style.borderRadius = '50%';
       el.style.border = '2px solid #fff';
       el.style.boxShadow = '0 0 3px rgba(0,0,0,0.4)';
