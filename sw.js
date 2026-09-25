@@ -10,7 +10,7 @@
 //
 // 導遊的 API 請求一律不快取，離線時就是不能用，這符合預期。
 
-const VERSION = 'v66';
+const VERSION = 'v67';
 const STATIC_CACHE = `kyoto-static-${VERSION}`;
 const TILE_CACHE = 'kyoto-tiles';
 const TILE_LIMIT = 600;          // 圖磚最多留幾張，避免把手機空間吃光
