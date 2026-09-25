@@ -24,7 +24,8 @@ kyoto-map/
 ├── data.js      ← 景點資料庫（可自行增修）
 ├── sw.js        ← 離線快取（每次部署 VERSION 要加 1）
 ├── HANDOFF.md   ← 給接手維修的 AI 看的完整說明（CLAUDE.md / GEMINI.md / AGENTS.md 都指向它）
-├── tools/check.js ← 改完必跑的自動檢查：node tools/check.js
+├── HANDOFF-9B.md ← 給 9B 等小模型（例如 Ornith-1.5-9B）的短版說明卡
+├── tools/       ← 改完必跑的 check.js，以及查景點、改座標、新增景點/分類、加版號的現成指令
 └── README.md    ← 這份說明
 ```
 

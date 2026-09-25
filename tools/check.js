@@ -25,10 +25,11 @@ const err = (m) => errors.push(m);
 const warn = (m) => warnings.push(m);
 
 const JS_FILES = ['logger.js', 'data.js', 'kyoto-border.js', 'app.js', 'sw.js'];
+const TOOL_FILES = fs.readdirSync(__dirname).filter(f => f.endsWith('.js')).map(f => 'tools/' + f);
 const FRONTEND = ['index.html', 'styles.css', ...JS_FILES.filter(f => f !== 'sw.js'), 'manifest.json'];
 
 // ---------- 1. 語法 ----------
-for (const f of JS_FILES) {
+for (const f of [...JS_FILES, ...TOOL_FILES]) {
   try {
     execFileSync(process.execPath, ['--check', path.join(ROOT, f)], { stdio: 'pipe' });
   } catch (e) {
