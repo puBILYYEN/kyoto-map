@@ -347,6 +347,12 @@ function renderMarkers() {
       // 疊兩層白色 drop-shadow 模擬白色外框，再疊一層深色陰影立體感。
       el.style.clipPath = 'polygon(50% 0%, 0% 100%, 100% 100%)';
       el.style.filter = 'drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff) drop-shadow(0 1px 2px rgba(0,0,0,0.5))';
+    } else if (spot.shape === 'star') {
+      // 星形一樣用 clip-path，五角星的座標；同理不用 border/box-shadow
+      // 改用 drop-shadow 模擬白色外框。強制最上層的 z-index 交給
+      // updateMarkerVisibility() 統一處理，這裡只管形狀本身。
+      el.style.clipPath = 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)';
+      el.style.filter = 'drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff) drop-shadow(0 1px 2px rgba(0,0,0,0.5))';
     } else {
       el.style.borderRadius = '50%';
       el.style.border = '2px solid #fff';
@@ -462,7 +468,9 @@ function updateMarkerVisibility() {
     const hasPawn = Object.values(othersState).some(
       m => Array.isArray(m.spotIds) && m.spotIds.includes(spot.id)
     );
-    el.style.zIndex = order >= 0 ? '10' : hasPawn ? '8' : (spot.id === activeSpotId ? '5' : '1');
+    // 星形（住宿地點）不管有沒有被選取、旁邊有沒有跳棋旗子，一律疊在最上層，
+    // 不然常常被別的景點蓋住找不到。
+    el.style.zIndex = spot.shape === 'star' ? '20' : order >= 0 ? '10' : hasPawn ? '8' : (spot.id === activeSpotId ? '5' : '1');
 
     // 只改文字節點，不要用 textContent 否則會把名稱標籤一起刪掉
     el.childNodes.forEach(node => {
