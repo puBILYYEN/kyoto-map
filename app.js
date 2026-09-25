@@ -340,21 +340,21 @@ function renderMarkers() {
     el.style.width = '16px';
     el.style.height = '16px';
     el.style.cursor = 'pointer';
-    if (spot.shape === 'triangle' || spot.shape === 'star') {
-      // ⚠️ 三角形／星形不能直接把 clip-path 設在 el 本身：clip-path 會
+    if (spot.shape === 'triangle' || spot.shape === 'star' || spot.shape === 'ingot') {
+      // ⚠️ 這三種形狀都不能直接把 clip-path 設在 el 本身：clip-path 會
       // 把「這個元素連同它所有子層」一起裁切成那個形狀範圍，而名稱標籤
       // 是用 top:100% 定位在 el 框框「外面」（見下面 .marker-label 的
       // 說明），一旦 el 被裁切，框外的標籤跟著被整個裁掉、憑空消失——
       // 這是「星形/三角形上的文字標籤跟介紹都不見了」這個 bug 的成因。
-      // 改成用 .marker-shape-triangle/star 這兩個 CSS class 搭配
-      // ::before 偽元素來畫形狀，形狀只裁切 ::before 自己，el 本身連同
-      // 上面的名稱標籤、徽章、選取後的順序數字都完全不受影響。
+      // 改成用 .marker-shape-* 這幾個 CSS class 搭配 ::before 偽元素
+      // 來畫形狀，形狀只裁切 ::before 自己，el 本身連同上面的名稱標籤、
+      // 徽章、選取後的順序數字都完全不受影響。
       el.style.background = 'transparent';
-      el.classList.add(spot.shape === 'triangle' ? 'marker-shape-triangle' : 'marker-shape-star');
-      // 三角形跟星形一樣改用亮色＋顏色閃爍（不是整體忽隱忽現，
-      // 不然點擊時常常在變淡的瞬間點不準），兩者顏色刻意選不同色系
-      // （橘 vs 金黃）方便一眼分辨是哪一種特別標記
-      el.style.setProperty('--marker-shape-bg', spot.shape === 'star' ? '#ffcc00' : '#ff8f00');
+      el.classList.add('marker-shape-' + spot.shape);
+      // 三種都改用亮色＋顏色閃爍（不是整體忽隱忽現，不然點擊時常常在
+      // 變淡的瞬間點不準），顏色刻意分成不同色系方便一眼分辨是哪一種
+      const shapeColor = spot.shape === 'star' ? '#ffcc00' : spot.shape === 'ingot' ? '#ffcc00' : '#ff8f00';
+      el.style.setProperty('--marker-shape-bg', shapeColor);
     } else {
       el.style.background = CATEGORY_META[spot.categories[0]].color;
       el.style.borderRadius = '50%';
