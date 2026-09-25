@@ -16,6 +16,10 @@ let tempAskMarker = null;              // 問路時，沒對應到既有景點�
 // 這個變數，宣告在後面會踩到 TDZ，所以要跟其他早期宣告放在一起。
 let othersState = {};                  // 其他人：id -> { name, color, spotIds }
 
+// 特殊標記形狀（三角形/星形/元寶/坐佛）各自的底色，renderMarkers() 也是
+// 在檔案開頭就同步執行，要跟上面 othersState 一樣早宣告避免 TDZ。
+const SHAPE_BASE_COLOR = { triangle: '#ff8f00', star: '#ffcc00', ingot: '#ffcc00', buddha: '#a67c00' };
+
 // 有些景點跟境內附屬的店家／設施座標完全相同（例如龍安寺跟西源院、
 // 貴船神社跟貴船溪谷），圖釘會疊在同一個像素上，沒被選取的那個會把
 // 另一個整個蓋住——包含蓋住的那個景點自己的跳棋旗子，導致明明有人
@@ -340,8 +344,8 @@ function renderMarkers() {
     el.style.width = '16px';
     el.style.height = '16px';
     el.style.cursor = 'pointer';
-    if (spot.shape === 'triangle' || spot.shape === 'star' || spot.shape === 'ingot') {
-      // ⚠️ 這三種形狀都不能直接把 clip-path 設在 el 本身：clip-path 會
+    if (SHAPE_BASE_COLOR[spot.shape]) {
+      // ⚠️ 這幾種形狀都不能直接把 clip-path 設在 el 本身：clip-path 會
       // 把「這個元素連同它所有子層」一起裁切成那個形狀範圍，而名稱標籤
       // 是用 top:100% 定位在 el 框框「外面」（見下面 .marker-label 的
       // 說明），一旦 el 被裁切，框外的標籤跟著被整個裁掉、憑空消失——
@@ -351,10 +355,9 @@ function renderMarkers() {
       // 徽章、選取後的順序數字都完全不受影響。
       el.style.background = 'transparent';
       el.classList.add('marker-shape-' + spot.shape);
-      // 三種都改用亮色＋顏色閃爍（不是整體忽隱忽現，不然點擊時常常在
+      // 每種都改用亮色＋顏色閃爍（不是整體忽隱忽現，不然點擊時常常在
       // 變淡的瞬間點不準），顏色刻意分成不同色系方便一眼分辨是哪一種
-      const shapeColor = spot.shape === 'star' ? '#ffcc00' : spot.shape === 'ingot' ? '#ffcc00' : '#ff8f00';
-      el.style.setProperty('--marker-shape-bg', shapeColor);
+      el.style.setProperty('--marker-shape-bg', SHAPE_BASE_COLOR[spot.shape]);
     } else {
       el.style.background = CATEGORY_META[spot.categories[0]].color;
       el.style.borderRadius = '50%';

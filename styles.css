@@ -709,7 +709,8 @@ html, body {
    裡的同一則說明）。 */
 .marker-shape-triangle::before,
 .marker-shape-star::before,
-.marker-shape-ingot::before {
+.marker-shape-ingot::before,
+.marker-shape-buddha::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -717,12 +718,12 @@ html, body {
   filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff) drop-shadow(0 1px 2px rgba(0,0,0,0.5));
   pointer-events: none;
 }
-/* 三種都只有裡面的顏色在閃爍，形狀本身的輪廓跟大小全程保持不透明、
+/* 每種都只有裡面的顏色在閃爍，形狀本身的輪廓跟大小全程保持不透明、
    不縮放——原本用 opacity 讓整個標記忽隱忽現，導致使用者常常在變淡、
    看不清楚的那個瞬間點不準；改成純變色，隨時都清楚可見、好點擊，
-   只有顏色在閃爍提醒。橘色跟金黃色刻意不同色系，一眼就能分辨
-   「離飯店最近的機車停車場」（三角形／橘）跟「住宿地點／金運景點」
-   （星形、元寶／金黃）。 */
+   只有顏色在閃爍提醒。顏色刻意分成不同色系，一眼就能分辨是哪一種：
+   「離飯店最近的機車停車場」（三角形／橘）、「住宿地點／御金神社」
+   （星形、元寶／亮金黃）、「壬生寺」（坐佛剪影／古銅金）。 */
 .marker-shape-triangle::before {
   clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
   animation: markerColorBlinkOrange 1.1s ease-in-out infinite;
@@ -738,9 +739,19 @@ html, body {
   clip-path: polygon(15% 8%, 32% 24%, 50% 14%, 68% 24%, 85% 8%, 100% 50%, 88% 85%, 50% 100%, 12% 85%, 0% 50%);
   animation: markerColorBlinkGold 1.1s ease-in-out infinite;
 }
+/* 坐佛剪影：頭部圓弧＋打坐時外展的肩／盤腿底座，一樣用直線多邊形
+   近似弧線效果 */
+.marker-shape-buddha::before {
+  clip-path: polygon(40% 5%, 60% 5%, 68% 20%, 58% 28%, 90% 55%, 85% 75%, 60% 90%, 40% 90%, 15% 75%, 10% 55%, 42% 28%, 32% 20%);
+  animation: markerColorBlinkBronze 1.1s ease-in-out infinite;
+}
 @keyframes markerColorBlinkGold {
   0%, 100% { background: #ffcc00; }
   50% { background: #fff3b0; }
+}
+@keyframes markerColorBlinkBronze {
+  0%, 100% { background: #a67c00; }
+  50% { background: #d4af37; }
 }
 @keyframes markerColorBlinkOrange {
   0%, 100% { background: #ff8f00; }
