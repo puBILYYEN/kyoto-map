@@ -520,6 +520,7 @@ const TABS = [
   { cat: 'kimono', label: CATEGORY_META.kimono.label },
   { cat: 'ninja', label: CATEGORY_META.ninja.label },
   { cat: 'police', label: CATEGORY_META.police.label },
+  { cat: 'parking', label: CATEGORY_META.parking.label },
 ];
 
 function renderTabs() {
