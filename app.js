@@ -1026,7 +1026,8 @@ async function shareByLink() {
 // Firebase SDK 用動態 import 從 CDN 載入，只有真的要用時才下載，
 // 不影響首次開啟速度，也不會影響離線功能。
 
-const shareState = { db: null, loading: false };
+const shareState = { db: null, auth: null, loading: false };
+const FIREBASE_SDK_BASE = 'https://www.gstatic.com/firebasejs/10.14.1';
 
 function shareEl(id) { return document.getElementById(id); }
 
@@ -1045,39 +1046,55 @@ function shareMessage(html) {
   if (!history.state || !history.state.share) history.pushState({ share: true }, '');
 }
 
+// Firestore 跟登入（Auth）共用同一個 Firebase app 實例，只能初始化一次，
+// 所以拆出這個共用的取得函式，兩邊都透過它拿 app，不會各自重複 initializeApp。
+let firebaseAppPromise = null;
+async function getFirebaseApp() {
+  if (!SHARE_CONFIG.firebaseConfig) throw new Error('尚未設定 Firebase');
+  if (navigator.onLine === false) throw new Error('目前沒有網路');
+  if (!firebaseAppPromise) {
+    firebaseAppPromise = import(`${FIREBASE_SDK_BASE}/firebase-app.js`)
+      .then(({ initializeApp, getApps, getApp }) => (getApps().length ? getApp() : initializeApp(SHARE_CONFIG.firebaseConfig)));
+  }
+  return firebaseAppPromise;
+}
+
 // 需要時才連線，連好之後重複使用
 async function getFirestore() {
   if (shareState.db) return shareState.db;
-  if (!SHARE_CONFIG.firebaseConfig) throw new Error('尚未設定 Firebase');
-  if (navigator.onLine === false) throw new Error('目前沒有網路');
-
-  const BASE = 'https://www.gstatic.com/firebasejs/10.14.1';
-  const [{ initializeApp }, firestore] = await Promise.all([
-    import(`${BASE}/firebase-app.js`),
-    import(`${BASE}/firebase-firestore.js`),
-  ]);
-  const app = initializeApp(SHARE_CONFIG.firebaseConfig);
+  const app = await getFirebaseApp();
+  const firestore = await import(`${FIREBASE_SDK_BASE}/firebase-firestore.js`);
   shareState.db = { ...firestore, instance: firestore.getFirestore(app) };
   return shareState.db;
+}
+
+// 跳棋改用 Google 登入之後才需要的 Auth SDK，一樣只在真的要用時才載入
+async function getAuthSvc() {
+  if (shareState.auth) return shareState.auth;
+  const app = await getFirebaseApp();
+  const authApi = await import(`${FIREBASE_SDK_BASE}/firebase-auth.js`);
+  shareState.auth = { ...authApi, instance: authApi.getAuth(app) };
+  return shareState.auth;
 }
 
 shareEl('shareLinkBtn').addEventListener('click', shareByLink);
 shareEl('shareClose').addEventListener('click', () => closeShare());
 shareEl('memberLogBtn').addEventListener('click', showMemberLog);
 
-// ---------- 跳棋：即時顯示每個人選了什麼（Firebase Firestore）----------
+// ---------- 跳棋：即時顯示每個人選了什麼（Firebase Firestore + Google 登入）----------
 // 跟上面「共享清單」不一樣：那個要手動存、手動開才看得到對方的清單；
-// 這個是每個人取一個名字＋顏色之後，選點會自動同步，其他家人不用做
-// 任何動作，地圖上就會自動多一顆屬於那個人的棋子。
+// 這個是登入之後，選點會自動同步，其他家人不用做任何動作，地圖上就會
+// 自動多一顆屬於那個人的棋子。
 //
-// 不用 Google 登入，所以用「名字」本身當 Firestore 的文件 ID（不是隨機碼），
-// 這樣同一個人不管在哪個瀏覽器、哪個裝置，只要打同一個名字，就會對到
-// 同一份資料、同一個顏色，不會每次都變成新的一個人。顏色預設用名字算出
-// 固定值（離線也能用），如果先前在別的裝置存過顏色，會優先沿用那個。
-// 代價：這個名字必須家人之間不要重複，不然會被當成同一支棋子。
+// 身份用 Google 帳號的 uid 當 Firestore 文件 ID（不是自己打的名字）。
+// 舊版是拿使用者自己打的名字當識別碼，結果兩個人不小心打了同一個名字，
+// 後寫入的那筆會直接覆蓋前面的資料，選點就無預警消失了——這是改用
+// Google 登入的原因：uid 是 Google 帳號保證唯一的值，不會再撞名。
+// 顯示用的「名字」還是可以自己改（見「改名字」），但只是顯示標籤，
+// 不再是識別身份的依據。
 
 const MEMBER_KEY = 'kyotoMemberIdentity';
-let memberIdentity = loadMemberIdentity();   // { id, name, color } 或 null
+let memberIdentity = loadMemberIdentity();   // { id, name, color } 或 null，id 現在是 Google uid
 
 // 這個瀏覽器/裝置的隨機代號，只是為了除錯記錄能分辨「是同一支手機還是
 // 不同裝置在寫同一個名字」，不是身份驗證，換瀏覽器或清資料就會變新的。
@@ -1119,38 +1136,172 @@ function hashName(str) {
   return h;
 }
 
-async function setupMemberIdentity() {
-  const raw = prompt(
-    '請輸入你的名字（家人在不同手機／瀏覽器打同一個名字，會被認成同一個人、自動沿用同樣的顏色，所以名字不要跟其他家人重複）',
-    memberIdentity ? memberIdentity.name : ''
-  );
+// 舊版（打名字當識別碼）留下的文件 ID 都很短（中文名字最多10個字），
+// 真正的 Google uid 一定是 28 個字的英數字，用這個粗略但夠用的方式
+// 分辨「這是舊資料、可以認領」還是「這已經是 uid-based 的新資料」。
+function looksLikeLegacyMemberId(id) {
+  return typeof id === 'string' && id.length > 0 && id.length <= 12;
+}
+
+// 登入後，如果這個 Google 帳號還沒有自己的資料，看看有沒有舊版留下、
+// 還沒被認領的名字（哥、秀容、妹妹...），讓使用者自己選「這是不是我」，
+// 選中的話直接把舊資料（選點、顏色）接過來，不用重新選一次。
+// 回傳 { name, color, spotIds } 或 null（使用者選「都不是」或沒有舊資料可選）。
+function offerLegacyClaim(candidates) {
+  return new Promise((resolve) => {
+    const body = shareEl('shareBody');
+    body.innerHTML = '';
+
+    const title = document.createElement('p');
+    title.className = 'share-note';
+    title.textContent = '第一次用 Google 登入——你是不是下面哪一位？選一下的話，之前選的景點會直接接過來，不用重選。';
+    body.appendChild(title);
+
+    candidates.forEach(c => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'share-btn share-btn-primary';
+      btn.style.marginBottom = '6px';
+      btn.textContent = `我是「${c.name}」`;
+      btn.addEventListener('click', () => { closeShare(); resolve(c); });
+      body.appendChild(btn);
+    });
+
+    const skipBtn = document.createElement('button');
+    skipBtn.type = 'button';
+    skipBtn.className = 'share-btn';
+    skipBtn.textContent = '都不是，我是新加入的';
+    skipBtn.addEventListener('click', () => { closeShare(); resolve(null); });
+    body.appendChild(skipBtn);
+
+    openShare();
+    if (!history.state || !history.state.share) history.pushState({ share: true }, '');
+  });
+}
+
+// 登入成功、確定拿到 Google user 之後：讀取（或建立）這個 uid 對應的
+// Firestore 身份文件，第一次登入時視情況跑一次「認領舊資料」的流程。
+// signInWithPopup 完成後，Firebase 自己的 onAuthStateChanged 也會幾乎同時
+// 觸發一次，兩邊都可能呼叫這個函式處理同一次登入；用這個旗標擋掉重複
+// 執行，不然「認領舊資料」的選單可能會被觸發兩次、或寫入兩次一樣的資料。
+let loadingMemberForUid = null;
+async function loadOrCreateMemberDoc(user) {
+  if (loadingMemberForUid === user.uid) return;
+  loadingMemberForUid = user.uid;
+  try {
+    const db = await getFirestore();
+    const ref = db.doc(db.instance, 'trips', SHARE_CONFIG.tripId, 'members', user.uid);
+    const snap = await db.getDoc(ref);
+
+    if (snap.exists()) {
+      const data = snap.data();
+      memberIdentity = {
+        id: user.uid,
+        name: data.name || (user.displayName ? user.displayName.slice(0, 10) : '我'),
+        color: data.color || MEMBER_COLORS[hashName(user.uid) % MEMBER_COLORS.length],
+      };
+    } else {
+      let claimed = null;
+      try {
+        const all = await db.getDocs(db.collection(db.instance, 'trips', SHARE_CONFIG.tripId, 'members'));
+        const candidates = [];
+        all.forEach(docSnap => {
+          if (looksLikeLegacyMemberId(docSnap.id)) candidates.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        if (candidates.length) claimed = await offerLegacyClaim(candidates);
+      } catch (err) {
+        console.warn('[跳棋] 查詢舊資料失敗，當作新加入處理：', err);
+      }
+
+      const name = (claimed && claimed.name) || (user.displayName ? user.displayName.slice(0, 10) : '我');
+      const color = (claimed && claimed.color) || MEMBER_COLORS[hashName(user.uid) % MEMBER_COLORS.length];
+      memberIdentity = { id: user.uid, name, color };
+
+      // 只有在這台裝置目前還沒自己選任何景點時，才把認領到的舊選點接過來，
+      // 避免蓋掉使用者這台裝置上正在選、還沒同步的東西
+      if (claimed && Array.isArray(claimed.spotIds) && claimed.spotIds.length && !selectedIds.length) {
+        selectedIds = claimed.spotIds.filter(id => SPOTS.some(s => s.id === id));
+        renderList();
+        renderSelection();
+        updateMarkerVisibility();
+      }
+
+      if (claimed) {
+        try {
+          const db2 = await getFirestore();
+          await db2.deleteDoc(db2.doc(db2.instance, 'trips', SHARE_CONFIG.tripId, 'members', claimed.id));
+        } catch (err) {
+          console.warn('[跳棋] 清除已認領的舊資料失敗（不影響這次登入）：', err);
+        }
+      }
+    }
+
+    saveMemberIdentity();
+    renderMemberBox();
+    // renderSelection()（前面接舊選點時可能呼叫過）會透過 scheduleMemberSync()
+    // 排一個延遲寫入，這裡改成立刻寫一次，記得取消那個排程，不然會白白多寫一次。
+    clearTimeout(memberSyncTimer);
+    pushMemberDoc();
+    startMembersListener();
+  } catch (err) {
+    console.warn('[跳棋] 登入後讀取/建立身份失敗：', err);
+    alert('登入成功，但連線資料失敗，請確認網路連線後重新整理頁面再試一次。');
+  } finally {
+    loadingMemberForUid = null;
+  }
+}
+
+async function signInWithGoogle() {
+  let auth;
+  try {
+    auth = await getAuthSvc();
+  } catch (err) {
+    console.warn('[跳棋] 無法載入登入功能：', err);
+    alert('目前無法使用登入功能，請確認網路連線後再試一次。');
+    return;
+  }
+
+  // 這裡拿到登入結果後不直接處理，交給下面已經註冊好的 onAuthStateChanged
+  // 監聽器去呼叫 loadOrCreateMemberDoc——避免這裡跟監聽器同時各呼叫一次，
+  // 導致「認領舊資料」選單跳兩次或寫入兩次一樣的資料。
+  const provider = new auth.GoogleAuthProvider();
+  try {
+    await auth.signInWithPopup(auth.instance, provider);
+  } catch (err) {
+    if (err && err.code === 'auth/popup-closed-by-user') return;   // 自己關掉的，不用顯示錯誤
+    if (err && (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request')) {
+      try { await auth.signInWithRedirect(auth.instance, provider); return; }
+      catch (redirectErr) { console.warn('[跳棋] 登入導向也失敗：', redirectErr); }
+    }
+    console.warn('[跳棋] Google 登入失敗：', err);
+    const inAppBrowser = err && (err.code === 'auth/operation-not-supported-in-this-environment' || err.code === 'auth/disallowed-useragent');
+    alert(inAppBrowser
+      ? '這個瀏覽器（可能是 LINE 或其他 App 內建的瀏覽器）不支援 Google 登入，請點右上角選單選「用瀏覽器開啟」或「在 Chrome 中開啟」，再回來登入一次。'
+      : '登入失敗，請確認網路連線後再試一次。');
+  }
+}
+
+// 改的只是顯示用的名字標籤，不會影響登入身份，也不會像舊版一樣變成
+// 另一個獨立身份——現在身份是綁在 Google 帳號上的。
+function renameDisplayName() {
+  if (!memberIdentity) return;
+  const raw = prompt('改成什麼名字？（只是顯示用，其他家人會看到這個名字）', memberIdentity.name);
   if (raw === null) return;
   const name = raw.trim().slice(0, 10);
   if (!name) return;
-
-  let color = MEMBER_COLORS[hashName(name) % MEMBER_COLORS.length];
-  try {
-    const db = await getFirestore();
-    const snap = await db.getDoc(db.doc(db.instance, 'trips', SHARE_CONFIG.tripId, 'members', name));
-    if (snap.exists() && snap.data().color) color = snap.data().color;
-  } catch (err) {
-    // 離線或連不上時用上面算好的預設顏色，不擋住設定流程
-  }
-
-  memberIdentity = { id: name, name, color };
+  memberIdentity.name = name;
   saveMemberIdentity();
   renderMemberBox();
   pushMemberDoc();
-  startMembersListener();
 }
 
-// 手動刪除自己這個跳棋身份（例如測試用的臨時名字），不會影響其他人的資料。
-// 不會自動觸發——改名字只是換成另一個獨立身份，舊名字不會自動消失，
-// 要刪除的話一定要按這個按鈕，自己確認才會刪。
+// 手動刪除自己這個跳棋身份（例如測試用的帳號），不會影響其他人的資料。
+// 刪除之後會一併登出，回到「登入」畫面，不會留在一個看起來已登入、
+// 但資料已經沒了的奇怪狀態。
 async function deleteMemberIdentity() {
   if (!memberIdentity) return;
   const { id, name } = memberIdentity;
-  if (!confirm(`確定要刪除跳棋身份「${name}」嗎？其他家人會看不到這個身份的選點。`)) return;
+  if (!confirm(`確定要刪除跳棋身份「${name}」嗎？其他家人會看不到這個身份的選點，你也會被登出。`)) return;
 
   try {
     const db = await getFirestore();
@@ -1165,6 +1316,12 @@ async function deleteMemberIdentity() {
   memberIdentity = null;
   saveMemberIdentity();
   renderMemberBox();
+  try {
+    const auth = await getAuthSvc();
+    await auth.signOut(auth.instance);
+  } catch (err) {
+    // 登出失敗也無所謂，本機的身份狀態已經清掉了
+  }
 }
 
 function renderMemberBox() {
@@ -1176,8 +1333,8 @@ function renderMemberBox() {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'share-btn share-btn-primary';
-    btn.textContent = '🀄 設定我的跳棋（名字）';
-    btn.addEventListener('click', setupMemberIdentity);
+    btn.textContent = '🔑 用 Google 帳號登入設定跳棋';
+    btn.addEventListener('click', signInWithGoogle);
     me.appendChild(btn);
     shareEl('memberOthers').innerHTML = '';
     renderJointList();
@@ -1197,8 +1354,8 @@ function renderMemberBox() {
   renameBtn.style.flex = 'none';
   renameBtn.style.padding = '4px 8px';
   renameBtn.textContent = '✏️';
-  renameBtn.title = '改名字';
-  renameBtn.addEventListener('click', setupMemberIdentity);
+  renameBtn.title = '改顯示名字';
+  renameBtn.addEventListener('click', renameDisplayName);
 
   const deleteBtn = document.createElement('button');
   deleteBtn.type = 'button';
@@ -1436,8 +1593,34 @@ async function startMembersListener() {
   }
 }
 
-renderMemberBox();
-if (memberIdentity) startMembersListener();
+// 先用本機快取的身份立刻顯示，避免整頁一開始閃一下「尚未登入」，
+// 再非同步跟 Firebase Auth 對一次真正的登入狀態，確保沒被登出、
+// 也接得住「剛從 Google 登入頁面導回來」（signInWithRedirect）的情況。
+async function initMemberAuth() {
+  renderMemberBox();   // 不管有沒有快取的身份，先畫出畫面（沒有的話就是「登入」按鈕）
+  if (memberIdentity) startMembersListener();
+  try {
+    const auth = await getAuthSvc();
+    try {
+      const redirectResult = await auth.getRedirectResult(auth.instance);
+      if (redirectResult && redirectResult.user) await loadOrCreateMemberDoc(redirectResult.user);
+    } catch (err) {
+      console.warn('[跳棋] 讀取登入導向結果失敗：', err);
+    }
+    auth.onAuthStateChanged(auth.instance, (user) => {
+      if (!user) {
+        if (memberIdentity) { memberIdentity = null; saveMemberIdentity(); renderMemberBox(); }
+        return;
+      }
+      if (memberIdentity && memberIdentity.id === user.uid) return;   // 狀態已經一致，不用重做一次
+      loadOrCreateMemberDoc(user);
+    });
+  } catch (err) {
+    // 尚未設定 Firebase 或目前離線，維持用本機快取的狀態就好，不擋住其他功能
+    console.warn('[跳棋] 無法初始化登入狀態：', err);
+  }
+}
+initMemberAuth();
 
 // ---------- 離線支援 ----------
 // 註冊 Service Worker，讓網站在沒有網路時仍然打得開
