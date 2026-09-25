@@ -699,15 +699,6 @@ html, body {
   overscroll-behavior: contain;
 }
 
-/* 住宿地點的星形標記持續閃爍，在一堆景點圖釘裡更容易一眼找到 */
-@keyframes markerBlink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
-}
-.marker-blink {
-  animation: markerBlink 1.1s ease-in-out infinite;
-}
-
 /* 三角形／星形標記：形狀畫在 ::before 偽元素上（不是 el 本身），
    這樣 clip-path 只會裁切這個偽元素，不會把 el 上其他用 position:absolute
    定位在框框外的子層（名稱標籤、徽章、選取後的順序數字）一起裁掉。
@@ -730,6 +721,15 @@ html, body {
 }
 .marker-shape-star::before {
   clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  /* 只有裡面的顏色在閃爍（金黃↔淺黃交替變色），星形本身的輪廓跟大小
+     全程保持不透明、不縮放——原本用 opacity 讓整顆星忽隱忽現，導致
+     使用者常常在變淡、看不清楚的那個瞬間點不準；改成純變色，星形
+     隨時都清楚可見、好點擊，只有顏色在閃爍提醒。 */
+  animation: markerColorBlink 1.1s ease-in-out infinite;
+}
+@keyframes markerColorBlink {
+  0%, 100% { background: #ffcc00; }
+  50% { background: #fff3b0; }
 }
 
 /* 問路小工具 */

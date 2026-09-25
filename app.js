@@ -352,7 +352,6 @@ function renderMarkers() {
       el.style.background = 'transparent';
       el.classList.add(spot.shape === 'triangle' ? 'marker-shape-triangle' : 'marker-shape-star');
       el.style.setProperty('--marker-shape-bg', spot.shape === 'star' ? '#ffcc00' : CATEGORY_META[spot.categories[0]].color);
-      if (spot.shape === 'star') el.classList.add('marker-blink');
     } else {
       el.style.background = CATEGORY_META[spot.categories[0]].color;
       el.style.borderRadius = '50%';
