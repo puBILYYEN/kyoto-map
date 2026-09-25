@@ -351,7 +351,10 @@ function renderMarkers() {
       // 上面的名稱標籤、徽章、選取後的順序數字都完全不受影響。
       el.style.background = 'transparent';
       el.classList.add(spot.shape === 'triangle' ? 'marker-shape-triangle' : 'marker-shape-star');
-      el.style.setProperty('--marker-shape-bg', spot.shape === 'star' ? '#ffcc00' : CATEGORY_META[spot.categories[0]].color);
+      // 三角形跟星形一樣改用亮色＋顏色閃爍（不是整體忽隱忽現，
+      // 不然點擊時常常在變淡的瞬間點不準），兩者顏色刻意選不同色系
+      // （橘 vs 金黃）方便一眼分辨是哪一種特別標記
+      el.style.setProperty('--marker-shape-bg', spot.shape === 'star' ? '#ffcc00' : '#ff8f00');
     } else {
       el.style.background = CATEGORY_META[spot.categories[0]].color;
       el.style.borderRadius = '50%';

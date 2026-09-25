@@ -716,20 +716,26 @@ html, body {
   filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff) drop-shadow(0 1px 2px rgba(0,0,0,0.5));
   pointer-events: none;
 }
+/* 兩者都只有裡面的顏色在閃爍，形狀本身的輪廓跟大小全程保持不透明、
+   不縮放——原本用 opacity 讓整個標記忽隱忽現，導致使用者常常在變淡、
+   看不清楚的那個瞬間點不準；改成純變色，隨時都清楚可見、好點擊，
+   只有顏色在閃爍提醒。橘色跟金黃色刻意不同色系，一眼就能分辨
+   「離飯店最近的機車停車場」（三角形／橘）跟「住宿地點」（星形／金黃）。 */
 .marker-shape-triangle::before {
   clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  animation: markerColorBlinkOrange 1.1s ease-in-out infinite;
 }
 .marker-shape-star::before {
   clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
-  /* 只有裡面的顏色在閃爍（金黃↔淺黃交替變色），星形本身的輪廓跟大小
-     全程保持不透明、不縮放——原本用 opacity 讓整顆星忽隱忽現，導致
-     使用者常常在變淡、看不清楚的那個瞬間點不準；改成純變色，星形
-     隨時都清楚可見、好點擊，只有顏色在閃爍提醒。 */
-  animation: markerColorBlink 1.1s ease-in-out infinite;
+  animation: markerColorBlinkGold 1.1s ease-in-out infinite;
 }
-@keyframes markerColorBlink {
+@keyframes markerColorBlinkGold {
   0%, 100% { background: #ffcc00; }
   50% { background: #fff3b0; }
+}
+@keyframes markerColorBlinkOrange {
+  0%, 100% { background: #ff8f00; }
+  50% { background: #ffd699; }
 }
 
 /* 問路小工具 */
