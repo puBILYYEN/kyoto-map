@@ -283,6 +283,125 @@ function formatDistance(km) {
   return km < 1 ? `${Math.round(km * 1000)} 公尺` : `${km.toFixed(1)} 公里`;
 }
 
+// ---------- 順路排序（給線上導遊參考，也用在套用建議順序時算距離） ----------
+// 從飯店出發，照直線距離排出總長最短的順序（走完不用回飯店）。
+// 15 個以內用精確算法（Held-Karp），保證是最短（手機上約 0.2 秒內）；更多的話用
+// 「2-opt＋搬移單點」從不同起始順序反覆重試 0.3 秒、挑最短的，不保證最短但很接近。距離是直線，實際搭車會不一樣，所以只當導遊的參考，
+// 導遊還會考慮營業時間、預約、長輩體力等因素。
+function routeStart() {
+  return SPOTS.find(s => s.id === 'b01') || null;   // 住宿 RESI STAY HEART
+}
+
+function routeLengthKm(start, spots) {
+  let km = 0;
+  let prev = start;
+  spots.forEach(s => { if (prev) km += distanceKm(prev, s); prev = s; });
+  return km;
+}
+
+function planRouteOrder(spots, start) {
+  if (spots.length < 2) return spots.slice();
+  if (!start) {
+    // 沒有飯店資料時，就以第一個景點當起點
+    return [spots[0], ...planRouteOrder(spots.slice(1), spots[0])];
+  }
+  return spots.length <= 15 ? exactRoute(spots, start) : heuristicRoute(spots, start);
+}
+
+function exactRoute(spots, start) {
+  const n = spots.length;
+  const full = (1 << n) - 1;
+  const d = spots.map(a => spots.map(b => distanceKm(a, b)));
+  const cost = new Float64Array((1 << n) * n).fill(Infinity);
+  const from = new Int8Array((1 << n) * n).fill(-1);
+  for (let j = 0; j < n; j++) cost[(1 << j) * n + j] = distanceKm(start, spots[j]);
+  for (let mask = 1; mask <= full; mask++) {
+    for (let j = 0; j < n; j++) {
+      const c = cost[mask * n + j];
+      if (!(mask & (1 << j)) || c === Infinity) continue;
+      for (let k = 0; k < n; k++) {
+        if (mask & (1 << k)) continue;
+        const next = mask | (1 << k);
+        const nc = c + d[j][k];
+        if (nc < cost[next * n + k]) { cost[next * n + k] = nc; from[next * n + k] = j; }
+      }
+    }
+  }
+  let end = 0;
+  for (let j = 1; j < n; j++) if (cost[full * n + j] < cost[full * n + end]) end = j;
+  const order = [];
+  for (let mask = full, j = end; j >= 0;) {
+    order.push(spots[j]);
+    const prev = from[mask * n + j];
+    mask &= ~(1 << j);
+    j = prev;
+  }
+  return order.reverse();
+}
+
+function heuristicRoute(spots, start, budgetMs = 300) {
+  // 第一次從「每次走最近的下一個」開始，之後每次打亂重來，時間到就停
+  const nearest = [];
+  const rest = spots.slice();
+  let cur = start;
+  while (rest.length) {
+    let best = 0;
+    rest.forEach((s, i) => { if (distanceKm(cur, s) < distanceKm(cur, rest[best])) best = i; });
+    cur = rest.splice(best, 1)[0];
+    nearest.push(cur);
+  }
+  let bestPath = improveRoute(nearest, start);
+  let bestLen = routeLengthKm(start, bestPath);
+  const deadline = Date.now() + budgetMs;
+  while (Date.now() < deadline) {
+    const shuffled = spots.slice().sort(() => Math.random() - 0.5);
+    const cand = improveRoute(shuffled, start);
+    const len = routeLengthKm(start, cand);
+    if (len + 1e-9 < bestLen) { bestPath = cand; bestLen = len; }
+  }
+  return bestPath;
+}
+
+function improveRoute(initial, start) {
+  const path = initial.slice();
+  let bestLen = routeLengthKm(start, path);
+  for (let round = 0, improved = true; improved && round < 100; round++) {
+    improved = false;
+    // 2-opt：把一段路反過來走
+    for (let i = 0; i < path.length - 1; i++) {
+      for (let k = i + 1; k < path.length; k++) {
+        const cand = [...path.slice(0, i), ...path.slice(i, k + 1).reverse(), ...path.slice(k + 1)];
+        const len = routeLengthKm(start, cand);
+        if (len + 1e-9 < bestLen) { path.splice(0, path.length, ...cand); bestLen = len; improved = true; }
+      }
+    }
+    // 搬移單點：把一個景點拿出來插到別的位置
+    for (let i = 0; i < path.length; i++) {
+      for (let k = 0; k < path.length; k++) {
+        if (k === i) continue;
+        const cand = path.slice();
+        const [x] = cand.splice(i, 1);
+        cand.splice(k, 0, x);
+        const len = routeLengthKm(start, cand);
+        if (len + 1e-9 < bestLen) { path.splice(0, path.length, ...cand); bestLen = len; improved = true; }
+      }
+    }
+  }
+  return path;
+}
+
+// 導遊（或家人傳來的連結）建議的新順序，一律只「重新排列」：
+// 建議裡有、目前也有選的，照建議的先後排；建議裡漏掉的，保留並接在最後面（絕不刪除）；
+// 建議裡多出來、目前沒選的，一律忽略（要新增景點只能走 [[ADD: …]]）。
+function reorderKeepAll(current, proposal) {
+  const cur = new Set(current);
+  const seen = new Set();
+  const out = [];
+  proposal.forEach(id => { if (cur.has(id) && !seen.has(id)) { out.push(id); seen.add(id); } });
+  current.forEach(id => { if (!seen.has(id)) { out.push(id); seen.add(id); } });
+  return out;
+}
+
 // 路線改成貼著馬路走的彎曲線，不是直線——用免費、不需要金鑰的 OSRM
 // 路線規劃服務（走路路徑），求的是「看得出真的怎麼走」，不是精確的
 // 大眾運輸轉乘（那個要付費的 API 才做得到，見 README 的說明）。
@@ -1096,8 +1215,8 @@ function buildListUrl() {
 }
 
 // 只接受確實存在的景點 id，順序照網址上的順序（順序會影響路線）
-function parseListFromHash(hash) {
-  const m = /[#&]list=([^&]*)/.exec(hash || '');
+function parseListFromHash(hash, key = 'list') {
+  const m = new RegExp('[#&]' + key + '=([^&]*)').exec(hash || '');
   if (!m) return null;
   const ids = decodeURIComponent(m[1]).split(',')
     .map(s => s.trim())
@@ -1105,8 +1224,22 @@ function parseListFromHash(hash) {
   return ids.slice(0, MAX_SHARED_SPOTS);
 }
 
+// 套用完就把 #list= / #order= 從網址拿掉：選點現在會存在手機裡，
+// 不拿掉的話每次重新整理都會再套用一次，把之後自己改過的選點蓋回去
+function clearShareHash() {
+  try { history.replaceState(history.state, '', location.pathname + location.search); } catch (e) { /* 舊瀏覽器就算了 */ }
+}
+
 // 開啟網頁時如果網址帶著清單，就直接套用
+//   #list=…   別人分享的整份清單（會取代目前的選點）
+//   #order=…  家人的導遊建議的新順序（只重新排列，不新增、不刪除）
 function applyListFromUrl() {
+  const order = parseListFromHash(location.hash, 'order');
+  if (order && order.length) {
+    applyOrderFromUrl(order);
+    clearShareHash();
+    return;
+  }
   const ids = parseListFromHash(location.hash);
   if (!ids || !ids.length) return;
   appLog('info', 'select', `從分享連結載入清單 ${ids.length} 個（原本 ${selectedIds.length} 個被取代）：${ids.join(',')}`);
@@ -1115,8 +1248,37 @@ function applyListFromUrl() {
   renderSelection();
   updateMarkerVisibility();
   fitToVisibleSpots();
+  clearShareHash();
   shareMessage('<p class="share-note share-note-ok">已載入分享的清單，共 ' + ids.length +
     ' 個景點。你可以直接用，也可以改完之後再按「🔗 用連結分享」傳回去。</p>');
+}
+
+function applyOrderFromUrl(order) {
+  let note;
+  if (!selectedIds.length) {
+    // 這台手機還沒選過（例如換了新手機），連結裡就是他原本的整份清單，直接用
+    selectedIds = order.slice();
+    appLog('info', 'select', `從建議順序連結載入 ${order.length} 個（這台手機原本沒有選點）：${order.join(',')}`);
+    note = `已載入家人建議的順路順序，共 ${order.length} 個景點。`;
+  } else {
+    const next = reorderKeepAll(selectedIds, order);
+    const kept = selectedIds.filter(id => !order.includes(id));
+    const skipped = order.filter(id => !selectedIds.includes(id));
+    if (next.join(',') === selectedIds.join(',')) {
+      note = '你的順序已經跟建議的一樣了，不用調整。';
+    } else {
+      selectedIds = next;
+      appLog('info', 'select', `套用家人傳來的建議順序：${next.join(',')}（保留：${kept.join(',') || '無'}，略過：${skipped.join(',') || '無'}）`);
+      note = `已照建議把你的 ${next.length} 個景點重新排順序（只改順序，沒有刪掉任何景點）。`;
+    }
+    if (kept.length) note += `建議裡沒有的「${spotNames(kept).join('、')}」保留在最後面。`;
+    if (skipped.length) note += `連結裡的「${spotNames(skipped).join('、')}」你已經沒選了，沒有幫你加回去。`;
+  }
+  renderList();
+  renderSelection();
+  updateMarkerVisibility();
+  fitToVisibleSpots();
+  shareMessage('<p class="share-note share-note-ok">' + note + '</p>');
 }
 
 async function shareByLink() {
@@ -2082,9 +2244,11 @@ function showLongPressHintOnce() {
 
 // 把景點的實際資料整理成一行，讓導遊照我們的資料回答，而不是憑自己的記憶。
 // 開頭的 [id] 是給導遊在建議加入地圖時引用用的，不是給人看的（見下面
-// extractAddTag() 的說明），一定要留著，不然導遊沒辦法指定要加哪個點。
-function describeSpot(spot) {
-  let line = `[${spot.id}] ${spot.name}（${spot.area}）：${spot.desc}`;
+// extractGuideTags() 的說明），一定要留著，不然導遊沒辦法指定要加哪個點。
+function describeSpot(spot, maxDesc) {
+  const desc = maxDesc && spot.desc.length > maxDesc ? spot.desc.slice(0, maxDesc) + '…' : spot.desc;
+  let line = `[${spot.id}] ${spot.name}（${spot.area}）：${desc}`;
+  if (spot.hours) line += `【開放時間：${spot.hours}】`;
   if (spot.booking) {
     const meta = BOOKING_META[spot.booking.level];
     line += `【${meta.label}：${spot.booking.note}】`;
@@ -2092,23 +2256,76 @@ function describeSpot(spot) {
   return line;
 }
 
-// 把目前畫面狀態告訴導遊，它才知道「我選的這幾個」是指哪幾個
+// 導遊回答裡用 [[ORDER@m1: …]] 指定「哪一位家人」，m1、m2… 對應到誰記在這裡
+let guideMemberKeys = {};   // 'm1' -> 家人的 uid
+
+function idsToSpots(ids) { return ids.map(id => SPOTS.find(s => s.id === id)).filter(Boolean); }
+function routeText(spots) { return spots.map(s => `[${s.id}] ${s.name}`).join(' → '); }
+
+// 一個人的清單：目前順序＋算好的順路順序（從飯店出發），給導遊判斷順不順路
+function describeRoute(label, spots) {
+  const start = routeStart();
+  const lines = [`${label}目前的順序：${routeText(spots)}（從飯店出發直線總長 ${formatDistance(routeLengthKm(start, spots))}）`];
+  if (spots.length >= 2) {
+    const planned = planRouteOrder(spots, start);
+    const same = planned.every((s, i) => s === spots[i]);
+    lines.push(same
+      ? '  → 依距離算，這已經是最順路的順序'
+      : `  → 依距離算出的順路順序：${routeText(planned)}（總長 ${formatDistance(routeLengthKm(start, planned))}）`);
+  }
+  return lines.join('\n');
+}
+
+// 把目前畫面狀態告訴導遊，它才知道「我選的這幾個」是指哪幾個。
+// 後端只收前 6000 字，所以短的重點（清單、路線、家人、格式說明）放前面，長的介紹放後面。
 function buildGuideContext(question) {
   const parts = [];
-  const selected = selectedIds.map(id => SPOTS.find(s => s.id === id)).filter(Boolean);
+  const selected = idsToSpots(selectedIds);
+  const me = memberIdentity ? memberIdentity.name : '使用者';
 
   if (selected.length) {
-    parts.push('使用者目前依序勾選了這些景點：');
-    selected.forEach((spot, i) => parts.push(`${i + 1}. ${describeSpot(spot)}`));
+    parts.push(describeRoute(`使用者（${me}）`, selected));
+  } else {
+    parts.push('使用者目前還沒有勾選任何景點。');
+  }
 
-    // 相鄰兩點的直線距離，導遊才有依據判斷順不順路
-    if (selected.length >= 2) {
-      const legs = [];
-      for (let i = 0; i < selected.length - 1; i++) {
-        legs.push(`${i + 1}→${i + 2} 直線 ${formatDistance(distanceKm(selected[i], selected[i + 1]))}`);
-      }
-      parts.push('各段直線距離（實際乘車會更長）：' + legs.join('、'));
+  // 其他家人的清單（跳棋同步來的），讓導遊能一起考慮大家的路線
+  guideMemberKeys = {};
+  const family = Object.entries(othersState)
+    .filter(([, m]) => m && Array.isArray(m.spotIds) && m.spotIds.length)
+    .slice(0, 6);
+  family.forEach(([uid, m], i) => {
+    const key = 'm' + (i + 1);
+    guideMemberKeys[key] = uid;
+    parts.push(describeRoute(`家人 ${key}（${m.name || '家人'}）`, idsToSpots(m.spotIds)));
+  });
+
+  // 大家共同選的景點：導遊可以盡量排在相近的時段，方便一起行動
+  if (family.length) {
+    const who = {};
+    selectedIds.forEach(id => { (who[id] = who[id] || []).push(me); });
+    family.forEach(([, m]) => m.spotIds.forEach(id => { (who[id] = who[id] || []).push(m.name || '家人'); }));
+    const shared = Object.entries(who).filter(([, names]) => names.length >= 2);
+    if (shared.length) {
+      parts.push('兩個人以上都選的景點：' + shared.map(([id, names]) => {
+        const s = SPOTS.find(x => x.id === id);
+        return s ? `[${id}] ${s.name}（${names.join('、')}）` : '';
+      }).filter(Boolean).join('、'));
     }
+  }
+
+  const someoneHasRoute = selected.length >= 2 || family.some(([, m]) => m.spotIds.length >= 2);
+  if (someoneHasRoute) {
+    parts.push(`
+【調整順序的格式（系統用）】
+- 使用者請你排順序、調整路線、問順不順路時，可以在回答最後另起一行加上：
+  [[ORDER: id1,id2,…]] ← 調整使用者自己的順序
+  [[ORDER@m1: id1,id2,…]] ← 建議家人 m1 的順序（系統會產生連結，讓使用者傳給那位家人）
+- 只能重新排列，不能刪除、不能新增：標記裡必須剛好是那個人目前選的全部景點，一個都不能少。
+  想建議新增景點用 [[ADD: …]]；覺得某個景點不適合，只能在文字裡說明，讓他們自己決定要不要拿掉。
+- 可以直接採用上面依距離算好的順路順序，也可以依開放時間、預約時段、用餐、長輩體力調整；
+  多人都選的景點盡量排在相近的位置，方便大家一起行動。調整時要在文字裡說明理由。
+- 標記使用者看不到，前面的文字要把新的先後順序講清楚（寫景點名稱，不要只寫代號）。`.trim());
   }
 
   const active = SPOTS.find(s => s.id === activeSpotId);
@@ -2120,14 +2337,18 @@ function buildGuideContext(question) {
     parts.push(`目前篩選的分類：${CATEGORY_META[activeCategory].label}`);
   }
 
-  if (!parts.length) parts.push('使用者目前還沒有勾選任何景點。');
+  if (selected.length) {
+    const maxDesc = selected.length > 5 ? 70 : 0;
+    parts.push('使用者已選景點的介紹：');
+    selected.forEach((spot, i) => parts.push(`${i + 1}. ${describeSpot(spot, maxDesc)}`));
+  }
 
-  // 依問題從 114 個景點裡撈出可能相關的，讓導遊有資料可以回答
+  // 依問題從景點資料庫裡撈出可能相關的，讓導遊有資料可以回答
   const related = findRelevantSpots(question, 6, selectedIds.concat(activeSpotId || []));
   if (related.length) {
     parts.push('');
     parts.push('資料庫中可能與問題相關的其他景點（使用者沒有勾選，僅供你參考）：');
-    related.forEach(spot => parts.push('- ' + describeSpot(spot)));
+    related.forEach(spot => parts.push('- ' + describeSpot(spot, 90)));
   }
 
   return parts.join('\n');
@@ -2180,15 +2401,21 @@ function closeChat(fromBackButton) {
   if (!fromBackButton && history.state && history.state.chat) history.back();
 }
 
-// 導遊要建議加進地圖的景點時，會在回答最後面附上像 [[ADD: t01,v01]]
-// 這樣的標記（後端 system prompt 有教它這個格式，只能用【目前畫面狀態】
-// 裡有出現的 [id]，不能自己編）。這段負責把標記從顯示文字裡拿掉，
-// 使用者只會看到正常的一段話，不會看到這個內部用的標記本身。
-function extractAddTag(answer) {
-  const m = answer.match(/\[\[ADD:\s*([^\]]*)\]\]/i);
-  if (!m) return { text: answer, ids: [] };
-  const ids = m[1].split(',').map(s => s.trim()).filter(Boolean);
-  return { text: answer.replace(m[0], '').trim(), ids };
+// 導遊回答最後面可能附上系統用的標記（使用者看不到，這裡負責拿掉）：
+//   [[ADD: t01,v01]]        建議加進地圖的景點（後端 system prompt 教的格式）
+//   [[ORDER: t03,t01,…]]    建議使用者自己的新順序（buildGuideContext 裡教的格式）
+//   [[ORDER@m1: …]]         建議家人 m1 的新順序，m1 對應誰記在 guideMemberKeys
+// 只能用【目前畫面狀態】裡出現過的 [id]，不能自己編；編了也會在套用時被擋掉。
+function extractGuideTags(answer) {
+  const splitIds = (str) => str.split(/[,，\s]+/).map(x => x.trim()).filter(Boolean);
+  const addIds = [];
+  const orders = [];
+  const text = answer.replace(/\[\[\s*(ADD|ORDER)(?:@(m\d+))?\s*[:：]\s*([^\]]*)\]\]/gi, (m, kind, who, list) => {
+    if (kind.toUpperCase() === 'ADD') addIds.push(...splitIds(list));
+    else orders.push({ who: who ? who.toLowerCase() : 'self', ids: splitIds(list) });
+    return '';
+  }).trim();
+  return { text, addIds, orders };
 }
 
 // 把導遊建議的景點加進「已選景點」。只接受真的存在於資料庫的 id
@@ -2211,6 +2438,101 @@ function applyGuideSuggestions(ids) {
 
   const names = toAdd.map(id => SPOTS.find(s => s.id === id).name);
   addChatMessage('bot', '📍 已經幫你把「' + names.join('、') + '」加進「已選景點」了。', 'chat-msg-ok');
+}
+
+// 在聊天視窗裡放幾個按鈕（套用、改回、傳給家人）
+function addChatActions(buttons) {
+  const wrap = document.createElement('div');
+  wrap.className = 'chat-actions';
+  buttons.forEach(({ label, onClick, primary }) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chat-action-btn' + (primary ? ' chat-action-primary' : '');
+    btn.textContent = label;
+    btn.addEventListener('click', () => onClick(btn, wrap));
+    wrap.appendChild(btn);
+  });
+  chatEl('chatMsgs').appendChild(wrap);
+  chatEl('chatMsgs').scrollTop = chatEl('chatMsgs').scrollHeight;
+  return wrap;
+}
+
+function spotNames(ids) { return idsToSpots(ids).map(s => s.name); }
+
+// 導遊建議「自己」的新順序：先給使用者看，按了才套用，套用後還可以改回來
+function proposeOwnOrder(proposal) {
+  const next = reorderKeepAll(selectedIds, proposal);
+  if (next.join(',') === selectedIds.join(',')) return;
+  const start = routeStart();
+  const before = routeLengthKm(start, idsToSpots(selectedIds));
+  const after = routeLengthKm(start, idsToSpots(next));
+  const kept = selectedIds.filter(id => !proposal.includes(id));
+  appLog('info', '導遊', `建議我的新順序：${next.join(',')}（導遊漏掉、保留在最後：${kept.join(',') || '無'}）`);
+
+  addChatMessage('bot',
+    '🔀 導遊建議的新順序：\n' + spotNames(next).map((n, i) => `${i + 1}. ${n}`).join('\n') +
+    `\n\n從飯店出發的直線總長：${formatDistance(before)} → ${formatDistance(after)}` +
+    (kept.length ? `\n（導遊漏掉的「${spotNames(kept).join('、')}」已經幫你保留，排在最後面）` : '') +
+    '\n只會調整順序，不會刪掉你選的任何景點。', 'chat-msg-ok');
+
+  addChatActions([
+    { label: '✅ 套用這個順序', primary: true, onClick: (btn, wrap) => {
+      const prev = selectedIds.slice();
+      // 按下去的當下再算一次：這段時間如果又勾了別的景點，也一樣保留
+      selectedIds = reorderKeepAll(selectedIds, next);
+      appLog('info', 'select', `套用導遊建議的順序：${selectedIds.join(',')}`);
+      renderList();
+      renderSelection();
+      updateMarkerVisibility();
+      wrap.remove();
+      addChatMessage('bot', '已經照這個順序排好了，地圖上的路線也更新了。', 'chat-msg-ok');
+      addChatActions([{ label: '↩️ 改回原本的順序', onClick: (b2, w2) => {
+        selectedIds = reorderKeepAll(selectedIds, prev);
+        appLog('info', 'select', `改回原本的順序：${selectedIds.join(',')}`);
+        renderList();
+        renderSelection();
+        updateMarkerVisibility();
+        w2.remove();
+        addChatMessage('bot', '已經改回原本的順序。', 'chat-msg-ok');
+      } }]);
+    } },
+    { label: '先不要', onClick: (btn, wrap) => wrap.remove() },
+  ]);
+}
+
+// 導遊建議「家人」的新順序：Firestore 規則只允許每個人改自己的資料，
+// 所以不直接改，而是產生 #order= 連結，讓使用者用 LINE 傳給那位家人，他點開就套用
+function proposeMemberOrder(key, proposal) {
+  const uid = guideMemberKeys[key];
+  const m = uid && othersState[uid];
+  if (!m || !Array.isArray(m.spotIds) || !m.spotIds.length) return;
+  const next = reorderKeepAll(m.spotIds, proposal);
+  if (next.join(',') === m.spotIds.join(',')) return;
+  const name = m.name || '家人';
+  const start = routeStart();
+  const before = routeLengthKm(start, idsToSpots(m.spotIds));
+  const after = routeLengthKm(start, idsToSpots(next));
+  appLog('info', '導遊', `建議 ${name} 的新順序：${next.join(',')}`);
+
+  addChatMessage('bot',
+    `🔀 給「${name}」的建議順序：\n` + spotNames(next).map((n, i) => `${i + 1}. ${n}`).join('\n') +
+    `\n\n直線總長：${formatDistance(before)} → ${formatDistance(after)}` +
+    `\n只會調整${name}的順序，不會刪掉他選的景點。按下面的按鈕把連結傳給${name}，他點開就會套用。`, 'chat-msg-ok');
+
+  addChatActions([{ label: `📤 傳給${name}`, primary: true, onClick: async () => {
+    const url = location.origin + location.pathname + '#order=' + next.slice(0, MAX_SHARED_SPOTS).join(',');
+    const text = `導遊幫你把 ${next.length} 個景點排成比較順路的順序（只改順序，不會刪掉你選的），點開連結就會套用：`;
+    if (navigator.share) {
+      try { await navigator.share({ title: '京都行程：建議順序', text, url }); return; }
+      catch (err) { if (err && err.name === 'AbortError') return; }
+    }
+    try {
+      await navigator.clipboard.writeText(text + url);
+      addChatMessage('bot', `連結已複製，貼到 LINE 傳給${name}就可以了。`, 'chat-msg-ok');
+    } catch (err) {
+      addChatMessage('bot', `請手動複製這個連結傳給${name}：\n${url}`, 'chat-msg-ok');
+    }
+  } }]);
 }
 
 async function sendToGuide(text) {
@@ -2265,11 +2587,12 @@ async function sendToGuide(text) {
     }
     const data = await res.json();
     const rawAnswer = (data && data.answer) ? data.answer : '導遊沒有回覆內容，請再問一次。';
-    const { text: answer, ids: suggestedIds } = extractAddTag(rawAnswer);
+    const { text: answer, addIds, orders } = extractGuideTags(rawAnswer);
     thinking.remove();
-    addChatMessage('bot', answer);
+    addChatMessage('bot', answer || '（導遊只回了調整建議，請看下面）');
     chatState.history.push({ q: question, a: answer });
-    applyGuideSuggestions(suggestedIds);
+    applyGuideSuggestions(addIds);
+    orders.forEach(o => (o.who === 'self' ? proposeOwnOrder(o.ids) : proposeMemberOrder(o.who, o.ids)));
   } catch (err) {
     thinking.remove();
     console.warn('[導遊] 失敗：', err);
@@ -2339,3 +2662,5 @@ renderList();
 renderSelection();
 setMobileView('list');
 applyListFromUrl();   // 網址帶著 #list=… 時，直接載入別人分享的清單
+// 網站本來就開著時點連結，瀏覽器只會換掉 # 後面、不會重新載入，要自己接
+window.addEventListener('hashchange', applyListFromUrl);

@@ -49,6 +49,7 @@
 | `tools/check.js` | **改完必跑的自動檢查**（`node tools/check.js`），不會部署到網站 | 加新的資料欄位或新檔案時 |
 | `tools/find.js` 等 | 現成指令：`find` 查景點、`set-coords` 改座標、`add-spot` 新增景點、`add-category` 新增分類、`bump` 加版號（用法寫在各檔案開頭） | 常見任務直接用，不用手改 data.js |
 | `HANDOFF-9B.md` | 給 9B 等小模型的短版說明卡 | 新增現成指令時 |
+| `.hermes.md` | `HANDOFF-9B.md` 的副本，Hermes Agent 會優先自動讀它（每次只讀一個說明檔） | 改完 HANDOFF-9B.md 後執行 `cp HANDOFF-9B.md .hermes.md`（check.js 會檢查） |
 | `README.md` | 給人看的說明，含 **Firestore 安全規則全文**、Firebase 設定步驟 | 改到 Firebase 時 |
 | `docs/*.mmd` | 架構圖（Mermaid），GitHub 會直接畫出來 | 架構大改時 |
 | `ai-backend/` | 線上導遊後端（Node，零套件），部署在 Render；`.vercelignore` 把它排除在 Vercel 外 | 導遊壞掉時 |
@@ -180,6 +181,15 @@ node tools/check.js
 8. **同一件事不要寫入兩次**：`signInWithPopup` 完成跟 `onAuthStateChanged` 都會觸發，所以登入後的處理只交給 `onAuthStateChanged`（有 `loadingMemberForUid` 防重入）。
 9. **座標一定要準**：使用者非常在意。能用使用者從 Google 地圖長按取得的座標就用那個；只能依地址估算時，`desc` 開頭要寫「⚠️ 座標為依地址估算，尚未逐一用Google地圖核對精確位置」。
 10. **頁面上有 `id="map"` 的 div**，瀏覽器會自動產生全域變數 `map` 指向它；判斷地圖是否可用要看 `map && typeof map.flyTo === 'function'`。
+11. **選點會存在手機（localStorage `kyotoMapSelected`），而且跟雲端比對前不准上傳。**
+    以前沒存，重新開啟網頁時畫面是空的，又立刻把空清單上傳，蓋掉雲端的選點（家人看到「某人 5→0」）。
+    `scheduleMemberSync()` / `pushMemberDoc()` 裡的 `ownSelectionReconciled` 檢查**絕對不能拿掉**；
+    比對邏輯在 `reconcileOwnSelection()`，依「手機最後修改時間 vs 雲端 updatedAt」決定用哪邊。
+12. **`#list=` / `#order=` 連結套用後要把網址的 # 清掉**（`clearShareHash()`），
+    不然選點存在手機後，每次重新整理都會再套用一次，把之後自己改的選點蓋回去。
+13. **導遊只能重新排列、不能刪除**：導遊回答裡的 `[[ORDER: …]]`、`[[ORDER@m1: …]]` 一律經過
+    `reorderKeepAll()`——漏掉的景點保留在最後、多出來的忽略。這是使用者明確要求的規則，不要改成直接照導遊的清單。
+    格式說明是寫在前端 `buildGuideContext()` 送出的狀態裡（不在後端 system prompt），所以改格式不用重新部署 Render。
 
 ---
 

@@ -930,6 +930,21 @@ html, body {
 .chat-msg-thinking { opacity: 0.65; font-style: italic; }
 .chat-msg-ok { background: #eaf5ec; color: #1f6b34; font-weight: 600; }
 
+/* 導遊建議順序下面的按鈕（套用、改回、傳給家人） */
+.chat-actions { align-self: flex-start; display: flex; flex-wrap: wrap; gap: 6px; }
+.chat-action-btn {
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-family: inherit;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.chat-action-btn:hover { background: #f1e6d8; }
+.chat-action-primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.chat-action-primary:hover { background: #9c3d24; }
+
 .chat-suggest {
   display: flex;
   flex-wrap: wrap;

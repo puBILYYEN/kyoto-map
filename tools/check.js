@@ -116,6 +116,12 @@ try {
   }
 } catch (e) { err(`檢查 index.html / sw.js 失敗：${e.message}`); }
 
+// ---------- 5b. Hermes Agent 讀的 .hermes.md 要跟 HANDOFF-9B.md 一樣 ----------
+// Hermes 每次只自動讀一個說明檔（.hermes.md 優先於 AGENTS.md），所以把 9B 快速卡複製一份給它
+if (fs.existsSync(path.join(ROOT, '.hermes.md')) && read('.hermes.md') !== read('HANDOFF-9B.md')) {
+  err('.hermes.md 跟 HANDOFF-9B.md 內容不一樣。改完 HANDOFF-9B.md 要再執行：cp HANDOFF-9B.md .hermes.md');
+}
+
 // ---------- 6. 跟上一次 commit 比 ----------
 function gitShow(file) {
   try { return execFileSync('git', ['show', `HEAD:${file}`], { cwd: ROOT, stdio: 'pipe' }).toString(); }
