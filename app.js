@@ -22,6 +22,38 @@ let tempAskMarker = null;              // 問路時，沒對應到既有景點�
 // 這個變數，宣告在後面會踩到 TDZ，所以要跟其他早期宣告放在一起。
 let othersState = {};                  // 其他人：id -> { name, color, spotIds }
 
+// 自己的選點存在手機裡，網頁被關掉再打開才不會變成 0 個。以前沒存，重新開啟時
+// 畫面是空的，又會立刻把空清單上傳，蓋掉雲端原本的選點（家人看到「某人 5→0」）。
+// 還沒跟雲端上自己的資料比對過之前一律不准上傳（ownSelectionReconciled），
+// 比對時看哪邊比較新（selectionChangedAt vs 雲端 updatedAt）。
+// 這幾個要在 renderMarkers() 之前宣告並還原，理由同上面的 TDZ 說明。
+const SELECTION_KEY = 'kyotoMapSelected';
+let selectionChangedAt = 0;          // 這台手機最後一次改選點的時間（毫秒），0 = 從沒改過
+let lastPersistedKey = '';
+let ownSelectionReconciled = false;
+restoreSavedSelection();
+
+function restoreSavedSelection() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SELECTION_KEY) || 'null');
+    if (!saved || !Array.isArray(saved.ids)) return;
+    selectedIds = saved.ids.filter(id => SPOTS.some(s => s.id === id));
+    selectionChangedAt = Number(saved.at) || 0;
+    lastPersistedKey = selectedIds.join(',');
+    if (selectedIds.length) appLog('info', 'select', `從手機還原上次的選點 ${selectedIds.length} 個：${lastPersistedKey}`);
+  } catch (e) { /* 私密瀏覽等情況讀不到，就從空的開始 */ }
+}
+
+// 選點真的有變才更新時間與存檔（renderSelection 每次都會呼叫，但畫面重畫不算「改選點」）
+function persistSelection() {
+  const key = selectedIds.join(',');
+  if (key === lastPersistedKey) return;
+  lastPersistedKey = key;
+  selectionChangedAt = Date.now();
+  try { localStorage.setItem(SELECTION_KEY, JSON.stringify({ ids: selectedIds, at: selectionChangedAt })); }
+  catch (e) { /* 存不了就只是重新開啟時不會還原 */ }
+}
+
 // 特殊標記形狀（三角形/星形/元寶/坐佛）各自的底色，renderMarkers() 也是
 // 在檔案開頭就同步執行，要跟上面 othersState 一樣早宣告避免 TDZ。
 const SHAPE_BASE_COLOR = { triangle: '#ff8f00', star: '#ffcc00', ingot: '#ffcc00', buddha: '#a67c00' };
@@ -675,6 +707,7 @@ function toggleSelect(spotId) {
 }
 
 function renderSelection() {
+  persistSelection();
   document.getElementById('selCount').textContent = `(${selectedIds.length})`;
   const navSelBtn = document.querySelector('.mobile-nav button[data-mview="sel"]');
   if (navSelBtn) navSelBtn.textContent = `✅ 已選 (${selectedIds.length})`;
@@ -1283,6 +1316,8 @@ let loadingMemberForUid = null;
 async function loadOrCreateMemberDoc(user) {
   if (loadingMemberForUid === user.uid) return;
   loadingMemberForUid = user.uid;
+  ownSelectionReconciled = false;
+  let pushNeeded = true;
   try {
     const db = await getFirestore();
     const ref = db.doc(db.instance, 'trips', SHARE_CONFIG.tripId, 'members', user.uid);
@@ -1295,7 +1330,9 @@ async function loadOrCreateMemberDoc(user) {
         name: data.name || (user.displayName ? user.displayName.slice(0, 10) : '我'),
         color: data.color || MEMBER_COLORS[hashName(user.uid) % MEMBER_COLORS.length],
       };
+      pushNeeded = reconcileOwnSelection(data) === 'push';
     } else {
+      ownSelectionReconciled = true;   // 雲端沒有這個人的資料，這台手機的就是最新的
       let claimed = null;
       try {
         const all = await db.getDocs(db.collection(db.instance, 'trips', SHARE_CONFIG.tripId, 'members'));
@@ -1336,8 +1373,9 @@ async function loadOrCreateMemberDoc(user) {
     renderMemberBox();
     // renderSelection()（前面接舊選點時可能呼叫過）會透過 scheduleMemberSync()
     // 排一個延遲寫入，這裡改成立刻寫一次，記得取消那個排程，不然會白白多寫一次。
+    // 雲端的比較新（已經拿回來）就不用寫，免得白白改到雲端的更新時間。
     clearTimeout(memberSyncTimer);
-    pushMemberDoc();
+    if (pushNeeded) pushMemberDoc();
     startMembersListener();
   } catch (err) {
     console.warn('[跳棋] 登入後讀取/建立身份失敗：', err);
@@ -1573,10 +1611,37 @@ function renderJointList() {
   });
 }
 
+// 拿到雲端上「自己」那份資料後，跟這台手機的選點比對一次（每次登入／開網頁一次）。
+// 回傳 'push'（手機比較新或雲端還沒有，要上傳）/'adopted'（雲端比較新，已經拿回來）/'same'
+function reconcileOwnSelection(cloud) {
+  ownSelectionReconciled = true;
+  if (!cloud) {
+    appLog('info', '跳棋', `雲端還沒有我的資料，上傳這台手機的選點 ${selectedIds.length} 個`);
+    return 'push';
+  }
+  const cloudIds = (Array.isArray(cloud.spotIds) ? cloud.spotIds : []).filter(id => SPOTS.some(s => s.id === id));
+  const cloudAt = (cloud.updatedAt && typeof cloud.updatedAt.toMillis === 'function') ? cloud.updatedAt.toMillis() : 0;
+  if (cloudIds.join(',') === selectedIds.join(',')) return 'same';
+  if (selectionChangedAt > cloudAt) {
+    appLog('info', '跳棋', `這台手機的選點比雲端新（手機 ${selectedIds.length} 個／雲端 ${cloudIds.length} 個），上傳手機的`);
+    return 'push';
+  }
+  appLog('info', 'select', `雲端的選點比較新，拿回來 ${cloudIds.length} 個（這台手機原本 ${selectedIds.length} 個）：${cloudIds.join(',')}`);
+  selectedIds = cloudIds;
+  lastPersistedKey = cloudIds.join(',');
+  selectionChangedAt = cloudAt;
+  try { localStorage.setItem(SELECTION_KEY, JSON.stringify({ ids: selectedIds, at: cloudAt })); } catch (e) { /* ignore */ }
+  renderList();
+  renderSelection();
+  updateMarkerVisibility();
+  clearTimeout(memberSyncTimer);   // 內容跟雲端一樣，不用再寫回去
+  return 'adopted';
+}
+
 // 選點有變動時就 debounce 一下再同步，避免連續勾選時瘋狂寫入
 function scheduleMemberSync() {
   renderJointList();
-  if (!memberIdentity) return;
+  if (!memberIdentity || !ownSelectionReconciled) return;
   clearTimeout(memberSyncTimer);
   memberSyncTimer = setTimeout(pushMemberDoc, 800);
 }
@@ -1608,7 +1673,7 @@ async function logMemberEvent(action, memberId, name, extra) {
 }
 
 async function pushMemberDoc() {
-  if (!memberIdentity) return;
+  if (!memberIdentity || !ownSelectionReconciled) return;
   const { id, name, color } = memberIdentity;
   const spotIds = selectedIds.slice(0, MAX_SHARED_SPOTS);
   try {
@@ -1672,10 +1737,17 @@ async function startMembersListener() {
       db.collection(db.instance, 'trips', SHARE_CONFIG.tripId, 'members'),
       (snap) => {
         const next = {};
+        let own = null;
         snap.forEach(docSnap => {
-          if (memberIdentity && docSnap.id === memberIdentity.id) return;   // 自己已經用原本的圓點+號碼顯示，不用重複疊一次
+          // 自己已經用原本的圓點+號碼顯示，不用重複疊一次，只留下來做比對
+          if (memberIdentity && docSnap.id === memberIdentity.id) { own = docSnap.data(); return; }
           next[docSnap.id] = docSnap.data();
         });
+        // 快取裡的舊資料（離線時）不算數，一定要等真的從雲端拿到才比對
+        const fromCache = !!(snap.metadata && snap.metadata.fromCache);
+        if (memberIdentity && !ownSelectionReconciled && !fromCache) {
+          if (reconcileOwnSelection(own) === 'push') scheduleMemberSync();
+        }
         logOthersChange(othersState, next);
         othersState = next;
         renderOthersList();
