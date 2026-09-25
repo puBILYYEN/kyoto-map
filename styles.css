@@ -95,34 +95,19 @@ html, body {
 }
 
 .tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
   padding: 10px;
   border-bottom: 1px solid var(--border);
 }
-.tab-btn {
+.tab-select {
+  width: 100%;
+  padding: 8px 10px;
   border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text);
   background: #fff;
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: 13px;
   cursor: pointer;
-  color: var(--text-muted);
 }
-.tab-btn.active {
-  color: #fff;
-  border-color: transparent;
-}
-.tab-btn[data-cat="all"].active { background: #444; }
-.tab-btn[data-cat="stay"].active { background: var(--stay); }
-.tab-btn[data-cat="temple"].active { background: var(--temple); }
-.tab-btn[data-cat="shopping"].active { background: var(--shopping); }
-.tab-btn[data-cat="scenic"].active { background: var(--scenic); }
-.tab-btn[data-cat="shojin"].active { background: var(--shojin); }
-.tab-btn[data-cat="onmyoji"].active { background: var(--onmyoji); }
-.tab-btn[data-cat="nobunaga"].active { background: var(--nobunaga); }
-.tab-btn[data-cat="ujimatcha"].active { background: var(--ujimatcha); }
 
 .search-box {
   padding: 8px 10px;
@@ -976,17 +961,6 @@ html, body {
   #app[data-mview="sel"] .tabs,
   #app[data-mview="sel"] .search-box,
   #app[data-mview="sel"] .spot-list { display: none; }
-
-  /* 頁籤改成橫向滑動，不換行才不會吃掉太多高度 */
-  .tabs {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-  }
-  .tabs::-webkit-scrollbar { display: none; }
-  .tab-btn { flex-shrink: 0; padding: 8px 14px; font-size: 13.5px; }
 
   /* 輸入框字級必須 16px，否則 iOS 聚焦時會自動放大整個頁面 */
   .search-box input[type="text"] { font-size: 16px; padding: 10px 12px; }

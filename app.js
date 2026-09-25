@@ -523,23 +523,29 @@ const TABS = [
   { cat: 'parking', label: CATEGORY_META.parking.label },
 ];
 
+// 分類越加越多（目前 20+ 個），改用下拉選單，不然分類清單自己就佔掉
+// 一大片空間，把下面的景點清單、已選景點都往下擠。
 function renderTabs() {
   const wrap = document.getElementById('tabs');
   wrap.innerHTML = '';
+
+  const select = document.createElement('select');
+  select.className = 'tab-select';
+  select.setAttribute('aria-label', '選擇分類');
   TABS.forEach(t => {
-    const btn = document.createElement('button');
-    btn.className = 'tab-btn' + (activeCategory === t.cat ? ' active' : '');
-    btn.dataset.cat = t.cat;
-    btn.textContent = t.label;
-    btn.addEventListener('click', () => {
-      activeCategory = t.cat;
-      renderTabs();
-      renderList();
-      updateMarkerVisibility();
-      fitToVisibleSpots();
-    });
-    wrap.appendChild(btn);
+    const opt = document.createElement('option');
+    opt.value = t.cat;
+    opt.textContent = t.label;
+    if (activeCategory === t.cat) opt.selected = true;
+    select.appendChild(opt);
   });
+  select.addEventListener('change', () => {
+    activeCategory = select.value;
+    renderList();
+    updateMarkerVisibility();
+    fitToVisibleSpots();
+  });
+  wrap.appendChild(select);
 }
 
 // ---------- 景點清單 ----------
