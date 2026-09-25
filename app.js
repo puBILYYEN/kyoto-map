@@ -883,6 +883,53 @@ function showPhrases() {
   updateMarkerVisibility();
 }
 
+// 退稅小幫手：結帳前播放／出示日語，結帳後照清單勾一次，確保真的辦到免稅
+function showTaxRefund() {
+  activeSpotId = null;
+  const p = TAX_REFUND.phrase;
+  document.getElementById('detailBody').innerHTML = `
+    <div class="detail-header"><h2>${TAX_REFUND.title}</h2></div>
+    <div class="detail-area">${TAX_REFUND.note}</div>
+
+    <div class="phrase-address">
+      <div class="phrase-address-label">${p.label}</div>
+      <div class="phrase-ja phrase-ja-big">${p.ja}</div>
+      <div class="phrase-sound">${p.romaji}</div>
+      <div class="phrase-sound">${p.sound}</div>
+      <button type="button" class="ask-play-btn" id="taxPlayBtn">🔊 播放日語</button>
+      <div class="ask-warning" id="taxWarning" hidden></div>
+      <div class="phrase-tip">${p.tip}</div>
+    </div>
+
+    <div class="prep-group">
+      <h3>✅ 結帳確認清單（<span id="taxProgress">0</span> / ${TAX_REFUND.checklist.length} 完成）</h3>
+      <ul class="tax-checklist">
+        ${TAX_REFUND.checklist.map((item, i) => `
+          <li>
+            <label>
+              <input type="checkbox" class="tax-check" data-idx="${i}">
+              <span>${item}</span>
+            </label>
+          </li>`).join('')}
+      </ul>
+    </div>
+  `;
+
+  document.getElementById('taxPlayBtn').addEventListener('click', () => speakJapanese(p.ja, 'taxWarning'));
+
+  const progress = document.getElementById('taxProgress');
+  document.querySelectorAll('.tax-check').forEach(box => {
+    box.addEventListener('change', () => {
+      box.closest('li').classList.toggle('done', box.checked);
+      progress.textContent = document.querySelectorAll('.tax-check:checked').length;
+    });
+  });
+
+  if (mobileQuery.matches) openDetailSheet();
+  renderList();
+  updateMarkerVisibility();
+}
+
 // 單一景點的 Google 地圖頁面（可看照片、評價、營業時間）
 // 有填 address 就用地址查，比用概略座標精準
 function buildPlaceUrl(spot) {
@@ -913,7 +960,7 @@ if (!map) {
   box.innerHTML =
     '<div class="map-unavailable">' +
     '🗺️ 地圖目前無法顯示<br><br>' +
-    '景點清單、日語小抄、行前準備都還正常，可以照常使用。<br>' +
+    '景點清單、日語小抄、行前準備、退稅小幫手都還正常，可以照常使用。<br>' +
     '換個網路環境重新整理，地圖通常就會回來。' +
     '</div>';
 }
@@ -1820,16 +1867,18 @@ function buildAskPhrase(spot) {
 // 中文發音硬套日文，比不播還糟糕（日本人聽了只會更困惑）。
 // 所以這裡刻意變嚴格：找不到真正的日文語音就不播，改成清楚引導去安裝，
 // 畫面上的日文文字一直都在，可以直接給對方看文字當備案。
-function showAskWarning(text) {
-  const warn = document.getElementById('askWarning');
+function showAskWarning(text, warnElId = 'askWarning') {
+  const warn = document.getElementById(warnElId);
   if (!warn) return;
   warn.textContent = text;
   warn.hidden = false;
 }
 
-function speakJapanese(text) {
+// warnElId：不同面板各自有自己的警告區塊（問路 vs 退稅小幫手），
+// 預設用問路面板的 id，維持既有呼叫端（buildAskPhrase 那邊）不用改。
+function speakJapanese(text, warnElId = 'askWarning') {
   if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
-    showAskWarning('這個瀏覽器不支援語音朗讀，請直接把畫面給對方看這句日文。');
+    showAskWarning('這個瀏覽器不支援語音朗讀，請直接把畫面給對方看這句日文。', warnElId);
     return;
   }
   speechSynthesis.cancel();   // 停掉上一次可能還沒播完的
@@ -1844,7 +1893,8 @@ function speakJapanese(text) {
         '這台手機還沒有安裝日文語音，播放出來的發音會不準確（可能會變成用中文發音硬唸日文）。\n\n' +
         '請到手機「設定」裡搜尋「文字轉語音」，選擇文字轉語音引擎的設定 → 安裝語音資料 → ' +
         '下載「日本語」語音包，裝好後再回來按一次播放。\n\n' +
-        '這段時間可以先直接把畫面給對方看這句日文。'
+        '這段時間可以先直接把畫面給對方看這句日文。',
+        warnElId
       );
       return;
     }
@@ -2164,6 +2214,7 @@ document.getElementById('bookingOnly').addEventListener('change', (e) => {
 
 document.getElementById('prepBtn').addEventListener('click', showPrep);
 document.getElementById('phraseBtn').addEventListener('click', showPhrases);
+document.getElementById('taxBtn').addEventListener('click', showTaxRefund);
 
 // ---------- 初始化 ----------
 renderTabs();

@@ -477,6 +477,30 @@ html, body {
 .phrase-ja-big { font-size: 19px; }
 .phrase-sound { font-size: 13px; color: var(--accent); }
 
+/* 退稅小幫手：結帳確認清單 */
+.tax-checklist { margin: 0; padding: 0; list-style: none; }
+.tax-checklist li {
+  padding: 8px 0;
+  border-bottom: 1px solid #f1ece2;
+}
+.tax-checklist li:last-child { border-bottom: none; }
+.tax-checklist label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.tax-checklist input[type="checkbox"] {
+  flex-shrink: 0;
+  width: 19px;
+  height: 19px;
+  margin-top: 2px;
+  accent-color: var(--accent);
+}
+.tax-checklist li.done span { color: var(--text-muted); text-decoration: line-through; }
+
 .phrase-tel li {
   display: flex;
   flex-wrap: wrap;
