@@ -541,6 +541,8 @@ const TABS = [
   { cat: 'togei', label: CATEGORY_META.togei.label },
   { cat: 'kimono', label: CATEGORY_META.kimono.label },
   { cat: 'ninja', label: CATEGORY_META.ninja.label },
+  { cat: 'train', label: CATEGORY_META.train.label },
+  { cat: 'enmusubi', label: CATEGORY_META.enmusubi.label },
   { cat: 'police', label: CATEGORY_META.police.label },
   { cat: 'parking', label: CATEGORY_META.parking.label },
   { cat: 'restroom', label: CATEGORY_META.restroom.label },
