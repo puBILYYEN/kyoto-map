@@ -699,6 +699,15 @@ html, body {
   overscroll-behavior: contain;
 }
 
+/* 住宿地點的星形標記持續閃爍，在一堆景點圖釘裡更容易一眼找到 */
+@keyframes markerBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.marker-blink {
+  animation: markerBlink 1.1s ease-in-out infinite;
+}
+
 /* 問路小工具 */
 .ask-overlay {
   position: fixed;

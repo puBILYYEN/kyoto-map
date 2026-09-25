@@ -351,8 +351,12 @@ function renderMarkers() {
       // 星形一樣用 clip-path，五角星的座標；同理不用 border/box-shadow
       // 改用 drop-shadow 模擬白色外框。強制最上層的 z-index 交給
       // updateMarkerVisibility() 統一處理，這裡只管形狀本身。
+      // 顏色改用亮黃色（蓋掉原本分類色）＋持續閃爍動畫，比其他景點更搶眼，
+      // 對應「常常被蓋住找不到」的問題。
       el.style.clipPath = 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)';
       el.style.filter = 'drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff) drop-shadow(0 1px 2px rgba(0,0,0,0.5))';
+      el.style.background = '#ffcc00';
+      el.classList.add('marker-blink');
     } else {
       el.style.borderRadius = '50%';
       el.style.border = '2px solid #fff';
