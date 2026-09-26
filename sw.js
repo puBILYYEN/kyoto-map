@@ -10,10 +10,11 @@
 //
 // 導遊的 API 請求一律不快取，離線時就是不能用，這符合預期。
 
-const VERSION = 'v97';
+const VERSION = 'v98';
 const STATIC_CACHE = `kyoto-static-${VERSION}`;
 const TILE_CACHE = 'kyoto-tiles';
 const TILE_LIMIT = 600;          // 圖磚最多留幾張，避免把手機空間吃光
+const PIN_TILE_CACHE = 'kyoto-tiles-pinned';  // 天災採購路線周圍的底圖（app.js 存的），永遠不清
 const NETWORK_TIMEOUT = 3500;
 
 // 網站的核心檔案，安裝時就先抓下來
@@ -93,8 +94,11 @@ async function cacheFirst(request, cacheName, limit) {
 async function trimCache(cacheName, limit) {
   const cache = await caches.open(cacheName);
   const keys = await cache.keys();
-  if (keys.length <= limit) return;
-  for (const key of keys.slice(0, keys.length - limit)) await cache.delete(key);
+  // 只清地圖圖磚（網址是 /z/x/y.pbf）；地圖樣式、字型、圖示數量很少，
+  // 被清掉的話斷網時整張底圖都畫不出來，所以一律留著
+  const tiles = keys.filter(k => /\/\d+\/\d+\/\d+\.pbf/.test(k.url));
+  if (tiles.length <= limit) return;
+  for (const key of tiles.slice(0, tiles.length - limit)) await cache.delete(key);
 }
 
 self.addEventListener('fetch', (event) => {
@@ -108,7 +112,12 @@ self.addEventListener('fetch', (event) => {
 
   // 地圖圖磚與樣式：快取優先，並限制數量
   if (url.hostname.endsWith('openfreemap.org')) {
-    event.respondWith(cacheFirst(request, TILE_CACHE, TILE_LIMIT).catch(() => Response.error()));
+    event.respondWith(
+      caches.open(PIN_TILE_CACHE)
+        .then(pin => pin.match(request))
+        .then(hit => hit || cacheFirst(request, TILE_CACHE, TILE_LIMIT))
+        .catch(() => Response.error())
+    );
     return;
   }
 

@@ -199,6 +199,7 @@ if (map) {
     mapLoaded = true;
     updateRouteLine();
     document.getElementById('map').classList.remove('map-no-basemap');
+    precacheDisasterTiles();
   });
 
   // 放大到一定程度才顯示名稱，否則 114 個名字會糊成一團
@@ -854,6 +855,53 @@ function buildSupplyBox(spot) {
       <button type="button" class="supply-gps">📡 用我現在的位置找，直接開 Google 導航</button>
       <div class="supply-gps-result"></div>
     </details>`;
+}
+
+// 颱風、地震時常常會斷網，所以有網路時先把「飯店＋採購路線上那幾家店」
+// 周圍的底圖圖磚存進手機（kyoto-tiles-pinned，sw.js 不會自動清掉它），
+// 斷網時地圖上的愛心旁邊照樣看得到街道。愛心本身是 DOM 元素，
+// 資料在 data.js（已經離線快取），本來就不用網路。
+const PIN_TILE_CACHE = 'kyoto-tiles-pinned';
+function lngLatToTile(lng, lat, z) {
+  const n = 2 ** z;
+  const r = lat * Math.PI / 180;
+  return {
+    x: Math.floor((lng + 180) / 360 * n),
+    y: Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n),
+  };
+}
+async function precacheDisasterTiles() {
+  try {
+    if (!navigator.onLine || !('caches' in window) || typeof DISASTER_ROUTE === 'undefined') return;
+    const pts = [DISASTER_ROUTE.fromSpot, ...(DISASTER_ROUTE.stops || [])]
+      .map(id => SPOTS.find(s => s.id === id)).filter(Boolean);
+    if (!pts.length) return;
+    const pad = 0.012;   // 往外多抓約 1 公里
+    const minLat = Math.min(...pts.map(p => p.lat)) - pad, maxLat = Math.max(...pts.map(p => p.lat)) + pad;
+    const minLng = Math.min(...pts.map(p => p.lng)) - pad, maxLng = Math.max(...pts.map(p => p.lng)) + pad;
+    const urls = [];
+    for (const [id, def] of Object.entries(map.getStyle().sources)) {
+      const src = map.getSource(id);
+      if (def.type !== 'vector' || !src || !src.tiles) continue;
+      const maxZ = Math.min(src.maxzoom ?? 14, 16);   // 超過來源最大層級時地圖會自己放大用，不用另外抓
+      for (let z = 10; z <= maxZ; z++) {
+        const a = lngLatToTile(minLng, maxLat, z), b = lngLatToTile(maxLng, minLat, z);
+        for (let x = a.x; x <= b.x; x++) for (let y = a.y; y <= b.y; y++) {
+          urls.push(src.tiles[0].replace('{z}', z).replace('{x}', x).replace('{y}', y));
+        }
+      }
+    }
+    const cache = await caches.open(PIN_TILE_CACHE);
+    let got = 0;
+    for (const url of urls) {
+      if (await cache.match(url)) continue;
+      const res = await fetch(url);
+      if (res.ok) { await cache.put(url, res); got++; }
+    }
+    appLog('info', '地圖', `天災採購路線離線底圖：共 ${urls.length} 張，這次新存 ${got} 張`);
+  } catch (err) {
+    appLog('warn', '地圖', `天災採購路線離線底圖存不了：${err.message}`);
+  }
 }
 
 // 飯店出發的採購路線：按鈕＋依序經過的店（地圖上是閃爍愛心）
