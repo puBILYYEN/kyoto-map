@@ -61,7 +61,7 @@ function persistSelection() {
 
 // 特殊標記形狀（三角形/星形/元寶/坐佛）各自的底色，renderMarkers() 也是
 // 在檔案開頭就同步執行，要跟上面 othersState 一樣早宣告避免 TDZ。
-const SHAPE_BASE_COLOR = { triangle: '#ff8f00', star: '#ffcc00', ingot: '#ffcc00', buddha: '#a67c00', diamond: '#00b8d4', invtriangle: '#e00000' };
+const SHAPE_BASE_COLOR = { triangle: '#ff8f00', star: '#ffcc00', ingot: '#ffcc00', buddha: '#a67c00', diamond: '#00b8d4', invtriangle: '#e00000', heart: '#e91e63' };
 
 // 有些景點跟境內附屬的店家／設施座標完全相同（例如龍安寺跟西源院、
 // 貴船神社跟貴船溪谷），圖釘會疊在同一個像素上，沒被選取的那個會把
@@ -849,11 +849,21 @@ function buildSupplyBox(spot) {
   return `
     <details class="supply-box"${spot.categories.includes('disaster') ? '' : ' open'}>
       <summary>🆘 天災時離這裡最近的補給點（食物・水・災難包）</summary>
-      ${spot.id === DISASTER_ROUTE.fromSpot ? `<a class="supply-route" href="${DISASTER_ROUTE.url}" target="_blank" rel="noopener noreferrer">${DISASTER_ROUTE.label}</a>` : ''}
+      ${spot.id === DISASTER_ROUTE.fromSpot ? buildRouteStops() : ''}
       <div class="supply-body">${supplyListHtml(spot, spot.id)}</div>
       <button type="button" class="supply-gps">📡 用我現在的位置找，直接開 Google 導航</button>
       <div class="supply-gps-result"></div>
     </details>`;
+}
+
+// 飯店出發的採購路線：按鈕＋依序經過的店（地圖上是閃爍愛心）
+function buildRouteStops() {
+  const stops = (DISASTER_ROUTE.stops || [])
+    .map(id => SPOTS.find(s => s.id === id)).filter(Boolean)
+    .map(s => `<li><button type="button" class="supply-name" data-supply="${s.id}">${s.name}</button>${s.hours ? `<span class="supply-meta">${s.hours}</span>` : ''}</li>`)
+    .join('');
+  return `<a class="supply-route" href="${DISASTER_ROUTE.url}" target="_blank" rel="noopener noreferrer">${DISASTER_ROUTE.label}</a>
+    ${stops ? `<div class="supply-gps-note">路線依序經過（地圖上的 💗 閃爍愛心）：</div><ol class="supply-list">${stops}</ol>` : ''}`;
 }
 
 function bindSupplyBox(root) {
