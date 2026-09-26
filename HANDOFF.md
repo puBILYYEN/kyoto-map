@@ -46,6 +46,7 @@
 | `sw.js` | Service Worker（離線快取）。**每次改任何前端檔案都要把 `VERSION` 加 1** | 每次部署 |
 | `VERSION.txt` | 更新紀錄，新的寫在最上面，格式「版本：vN」 | 每次部署 |
 | `kyoto-border.js` | 京都府府界的 GeoJSON（地圖上的邊界線） | 幾乎不用動 |
+| `tv.html` / `tv.js` / `tv.css` | **電視版**（Android TV 電視盒，遙控器操作、只讀）。共用 `data.js`、`logger.js`，不載入 `app.js`；家人行程直接讀 Firestore `members`（開放讀取、不用登入），地圖跟著某人的手機即時更新 | 電視版的問題 |
 | `tools/check.js` | **改完必跑的自動檢查**（`node tools/check.js`），不會部署到網站 | 加新的資料欄位或新檔案時 |
 | `tools/find.js` 等 | 現成指令：`find` 查景點、`set-coords` 改座標、`add-spot` 新增景點、`add-category` 新增分類、`bump` 加版號（用法寫在各檔案開頭） | 常見任務直接用，不用手改 data.js |
 | `HANDOFF-9B.md` | 給 9B 等小模型的短版說明卡 | 新增現成指令時 |

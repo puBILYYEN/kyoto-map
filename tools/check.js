@@ -24,9 +24,9 @@ const warnings = [];
 const err = (m) => errors.push(m);
 const warn = (m) => warnings.push(m);
 
-const JS_FILES = ['logger.js', 'data.js', 'kyoto-border.js', 'app.js', 'sw.js'];
+const JS_FILES = ['logger.js', 'data.js', 'kyoto-border.js', 'app.js', 'tv.js', 'sw.js'];
 const TOOL_FILES = fs.readdirSync(__dirname).filter(f => f.endsWith('.js')).map(f => 'tools/' + f);
-const FRONTEND = ['index.html', 'styles.css', ...JS_FILES.filter(f => f !== 'sw.js'), 'manifest.json'];
+const FRONTEND = ['index.html', 'tv.html', 'tv.css', 'styles.css', ...JS_FILES.filter(f => f !== 'sw.js'), 'manifest.json'];
 
 // ---------- 1. 語法 ----------
 for (const f of [...JS_FILES, ...TOOL_FILES]) {
@@ -86,7 +86,7 @@ try {
 const SIMPLIFIED =
   '这们个为发时说车门东过还进对语该应资关开间问题线边场图际头馆买卖张长书网页电话读风飞乐药园远运选连钱铁银险验钟级约经给统总热爱认让识详请谁调贵费贴轻较辆迟逻邮锁锅闭阅队陆阳难须顾预领额驾骑鱼鸟龙齐龟缘闻务动办华业丽专两严义习乡亚产亲众优传伤' +
   '侧儿兴农况净则刚创别剧劳势协单卫历压厅县变听启员响围坏块处备复夺奋妇妈实审宽寻导层岁岛币师带帮广庆库庙废异弃弹归录彻忆态怀恶悬惊惯战户执扩扫扬护报担拥择挂换据损摄无显晓暂术杂权杨极构标样桥检欢气汉汤沟泽洁济浓涂润涨渐满滨灵灾烟烦烧牵犹狭猎环现畅疗盖盘础确离种积称稳穷签简类粮纪纯纸练组细终绍结绝绿编罗罚职联聪肃胜脑节苏荐获营虽虾补见观规视览觉计订讨训议记讲许论设访证评诉词译试诗诚误课谈谢贝负财责败货质购贸赏赛赞赵趋践轨转轮软载输辞辽达迁违适递遗邻郑酱释钢钥链销错闪闲闹阴阶陈隐雾韩顶项顺频颜饭饮饰饼驶驻骤鲜鸡鸭麦';
-for (const f of ['data.js', 'app.js', 'index.html', 'logger.js']) {
+for (const f of ['data.js', 'app.js', 'index.html', 'logger.js', 'tv.js', 'tv.html']) {
   read(f).split('\n').forEach((line, i) => {
     if (line.includes('簡繁檢查：刻意')) return;
     const hits = [...new Set([...line].filter(ch => SIMPLIFIED.includes(ch)))];
