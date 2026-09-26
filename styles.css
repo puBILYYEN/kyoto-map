@@ -1257,3 +1257,27 @@ html, body {
 .talk-text { font-size: 15px; line-height: 1.7; font-weight: 600; }
 .talk-tags { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
 .talk-tag { font-size: 12px; background: #fff; border: 1px solid #f3b8b3; border-radius: 999px; padding: 2px 8px; }
+.talk-line { font-size: 14px; line-height: 1.7; margin-top: 4px; }
+.foodlog { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #f3b8b3; }
+.foodlog-head { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+.foodlog-starbtns { display: flex; gap: 2px; }
+.foodlog-star { border: none; background: none; font-size: 28px; line-height: 1; color: #f5a623; cursor: pointer; padding: 2px 4px; }
+.foodlog-note { width: 100%; box-sizing: border-box; margin: 6px 0; padding: 8px; border: 1px solid #e0c9c6; border-radius: 6px; font: inherit; font-size: 14px; }
+.foodlog-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.foodlog-save, .foodlog-del, .foodlog-summary {
+  padding: 7px 12px; border-radius: 6px; font: inherit; font-size: 14px; cursor: pointer;
+  border: 1px solid #c62828;
+}
+.foodlog-save { background: #c62828; color: #fff; font-weight: 600; }
+.foodlog-del, .foodlog-summary { background: #fff; color: #c62828; }
+.foodlog-msg { font-size: 12px; color: #777; margin-top: 4px; }
+.foodlog-msg:empty { display: none; }
+.foodlog-family-head { font-size: 13px; font-weight: 700; margin-top: 10px; }
+.foodlog-family { margin: 4px 0 0; padding-left: 0; list-style: none; font-size: 14px; }
+.foodlog-family li { margin-bottom: 4px; }
+.foodlog-who { color: #fff; border-radius: 999px; padding: 1px 8px; font-size: 12px; margin-right: 4px; }
+.foodlog-stars { color: #f5a623; margin-right: 4px; }
+.spot-eaten { font-size: 12px; color: #f5a623; font-weight: 400; }
+.food-chip-summary { border-style: dashed; }
+.foodsum-family { display: block; margin: 8px 0; font-size: 14px; }
+.foodsum-text { width: 100%; box-sizing: border-box; margin: 8px 0; padding: 10px; font: inherit; font-size: 14px; line-height: 1.7; border: 1px solid #ddd; border-radius: 8px; }

@@ -313,6 +313,19 @@ service cloud.firestore {
                     && request.resource.data.spotId is string
                     && request.resource.data.spotId.size() <= 10;
     }
+    match /trips/kyoto2026/foodLog/{memberId} {
+      // 踩店紀錄：每個人吃過哪些美食店、幾顆星、一句心得（items 是 { 景點id: {stars, note, at} }）。
+      // 大家都能讀（全家互相看），只能本人寫自己的那一份，最多 80 筆
+      allow read: if true;
+      allow create, update: if request.auth != null
+                    && request.auth.uid == memberId
+                    && request.resource.data.keys().hasOnly(['name', 'color', 'items', 'updatedAt'])
+                    && request.resource.data.name is string
+                    && request.resource.data.name.size() <= 10
+                    && request.resource.data.color is string
+                    && request.resource.data.items is map
+                    && request.resource.data.items.size() <= 80;
+    }
   }
 }
 ```

@@ -39,6 +39,16 @@ restoreSavedSelection();
 let viewingTimer = null;
 let viewingDisabled = false;
 
+// 踩店紀錄（美食店吃過打勾＋星星＋一句心得）。先存手機（kyotoFoodLog），登入後同步到
+// Firestore trips/kyoto2026/foodLog/{uid}，全家互相看得到。刪除用 del:true 的墓碑，
+// 才能同步到其他裝置。showDetail() 可能很早就被呼叫，所以要在這裡宣告（TDZ）。
+const FOODLOG_KEY = 'kyotoFoodLog';
+let foodLog = loadFoodLog();     // { spotId: { stars, note, at, del? } }
+let familyFoodLogs = {};         // 其他家人：uid -> { name, color, items }
+let foodLogTimer = null;
+let foodLogDisabled = false;     // 規則還沒發布（permission-denied）時就只存手機
+let foodLogListening = false;
+
 function restoreSavedSelection() {
   try {
     const saved = JSON.parse(localStorage.getItem(SELECTION_KEY) || 'null');
@@ -766,6 +776,12 @@ function renderTabs() {
       });
       chips.appendChild(btn);
     });
+    const sum = document.createElement('button');
+    sum.type = 'button';
+    sum.className = 'food-chip food-chip-summary';
+    sum.textContent = `📋 我的踩店清單 ${myFoodItems().length}`;
+    sum.addEventListener('click', showFoodSummary);
+    chips.appendChild(sum);
     wrap.appendChild(chips);
   }
 }
@@ -803,7 +819,7 @@ function renderList() {
       ? `<span class="booking-tag" style="background:${BOOKING_META[spot.booking.level].color}">${BOOKING_META[spot.booking.level].label}</span>`
       : '';
     info.innerHTML =
-      `<div class="spot-name">${spot.name}${tag}</div><div class="spot-area">${spot.area}</div>`;
+      `<div class="spot-name">${spot.name}${tag}${foodLog[spot.id] && !foodLog[spot.id].del && foodLog[spot.id].stars ? ` <span class="spot-eaten">✅ ${'★'.repeat(foodLog[spot.id].stars)}</span>` : ''}</div><div class="spot-area">${spot.area}</div>`;
 
     item.appendChild(checkbox);
     item.appendChild(dot);
@@ -844,6 +860,7 @@ function showDetail(spotId) {
     ${buildSupplyBox(spot)}
   `;
   bindSupplyBox(panel);
+  bindFoodLog(panel);
   if (mapIsVisible()) {
     map.flyTo({ center: [spot.lng, spot.lat], zoom: 14.5, duration: 600 });
   }
@@ -858,7 +875,231 @@ function buildTalkBox(spot) {
   const tags = (spot.foodTags || [])
     .map(k => (typeof FOOD_TAGS !== 'undefined' && FOOD_TAGS[k]) ? `<span class="talk-tag">${FOOD_TAGS[k]}</span>` : '')
     .join('');
-  return `<div class="talk-box"><div class="talk-head">💬 回台灣可以這樣聊</div><div class="talk-text">${spot.talk}</div>${tags ? `<div class="talk-tags">${tags}</div>` : ''}</div>`;
+  return `<div class="talk-box"><div class="talk-head">💬 回台灣可以這樣聊</div><div class="talk-text">${spot.talk}</div>
+    ${spot.mustTry ? `<div class="talk-line">🍽️ <b>必點</b>：${spot.mustTry}</div>` : ''}
+    ${spot.photoTip ? `<div class="talk-line">📷 <b>拍照重點</b>：${spot.photoTip}</div>` : ''}
+    ${tags ? `<div class="talk-tags">${tags}</div>` : ''}
+    <div class="foodlog" id="foodLogBox" data-spot="${spot.id}">${foodLogInner(spot.id)}</div></div>`;
+}
+
+// ---------- 踩店紀錄 ----------
+function loadFoodLog() {
+  try { return JSON.parse(localStorage.getItem(FOODLOG_KEY) || '{}') || {}; } catch (e) { return {}; }
+}
+function saveFoodLogLocal() {
+  try { localStorage.setItem(FOODLOG_KEY, JSON.stringify(foodLog)); } catch (e) { /* 存不了就只是這次有效 */ }
+}
+function escapeHtml(t) {
+  return String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function starText(n) { return '★'.repeat(n) + '☆'.repeat(5 - n); }
+function myFoodItems() {
+  return Object.entries(foodLog).filter(([, v]) => v && !v.del && v.stars);
+}
+
+function foodLogInner(spotId) {
+  const mine = foodLog[spotId] && !foodLog[spotId].del ? foodLog[spotId] : null;
+  const stars = mine ? mine.stars : 0;
+  const family = Object.values(familyFoodLogs)
+    .map(m => ({ m, it: m.items && m.items[spotId] }))
+    .filter(x => x.it && !x.it.del && x.it.stars)
+    .map(({ m, it }) => `<li><span class="foodlog-who" style="background:${escapeHtml(m.color || '#888')}">${escapeHtml(m.name || '家人')}</span>
+      <span class="foodlog-stars">${starText(it.stars)}</span>${it.note ? `「${escapeHtml(it.note)}」` : ''}</li>`)
+    .join('');
+  return `
+    <div class="foodlog-head">${mine ? '✅ 我踩過了' : '🍴 踩店紀錄'}</div>
+    <div class="foodlog-starbtns">${[1, 2, 3, 4, 5].map(n =>
+      `<button type="button" class="foodlog-star${n <= stars ? ' on' : ''}" data-star="${n}" aria-label="${n} 顆星">${n <= stars ? '★' : '☆'}</button>`).join('')}</div>
+    <input class="foodlog-note" type="text" maxlength="60" placeholder="一句心得（例如：抹茶超濃！）" value="${mine ? escapeHtml(mine.note || '') : ''}">
+    <div class="foodlog-actions">
+      <button type="button" class="foodlog-save">${mine ? '更新心得' : '✅ 踩過了！'}</button>
+      ${mine ? '<button type="button" class="foodlog-del">取消踩過</button>' : ''}
+      <button type="button" class="foodlog-summary">📋 我的踩店清單</button>
+    </div>
+    <div class="foodlog-msg">${foodLogStatusText()}</div>
+    ${family ? `<div class="foodlog-family-head">👨‍👩‍👧 家人的踩店心得</div><ul class="foodlog-family">${family}</ul>` : ''}`;
+}
+
+function foodLogStatusText() {
+  if (!memberIdentity) return '目前只存在這支手機；用 Google 登入跳棋後，全家會互相看得到。';
+  if (foodLogDisabled) return '目前只存在這支手機（全家同步還沒開通，要先發布 Firestore 規則）。';
+  return '';
+}
+
+function bindFoodLog(root) {
+  const box = root.querySelector('#foodLogBox');
+  if (!box) return;
+  const spotId = box.dataset.spot;
+  let pick = foodLog[spotId] && !foodLog[spotId].del ? foodLog[spotId].stars : 0;
+  box.querySelectorAll('.foodlog-star').forEach(btn => btn.addEventListener('click', () => {
+    pick = Number(btn.dataset.star);
+    box.querySelectorAll('.foodlog-star').forEach(b => {
+      const on = Number(b.dataset.star) <= pick;
+      b.classList.toggle('on', on);
+      b.textContent = on ? '★' : '☆';
+    });
+  }));
+  box.querySelector('.foodlog-save').addEventListener('click', () => {
+    if (!pick) { box.querySelector('.foodlog-msg').textContent = '先點星星給分（1～5 顆）再按踩過了'; return; }
+    const note = box.querySelector('.foodlog-note').value.trim().slice(0, 60);
+    foodLog[spotId] = { stars: pick, note, at: Date.now() };
+    appLog('info', 'foodlog', `踩過 ${spotId} ${pick} 星`);
+    afterFoodLogChange(root);
+  });
+  const del = box.querySelector('.foodlog-del');
+  if (del) del.addEventListener('click', () => {
+    foodLog[spotId] = { del: true, at: Date.now() };
+    appLog('info', 'foodlog', `取消踩過 ${spotId}`);
+    afterFoodLogChange(root);
+  });
+  box.querySelector('.foodlog-summary').addEventListener('click', showFoodSummary);
+}
+
+function afterFoodLogChange(root) {
+  saveFoodLogLocal();
+  refreshFoodLogBox();
+  if (activeCategory === 'food') renderTabs();   // 更新「📋 我的踩店清單」的數字
+  renderList();
+  scheduleFoodLogSync();
+}
+
+function refreshFoodLogBox() {
+  const box = document.getElementById('foodLogBox');
+  if (!box) return;
+  box.innerHTML = foodLogInner(box.dataset.spot);
+  bindFoodLog(box.parentElement);
+}
+
+function scheduleFoodLogSync() {
+  if (!memberIdentity || foodLogDisabled) return;
+  clearTimeout(foodLogTimer);
+  foodLogTimer = setTimeout(pushFoodLog, 800);
+}
+
+async function pushFoodLog() {
+  if (!memberIdentity || foodLogDisabled) return;
+  const { id, name, color } = memberIdentity;
+  // 只留最近 80 筆（含取消的墓碑），避免超過規則的上限
+  const items = Object.fromEntries(Object.entries(foodLog).sort((a, b) => (b[1].at || 0) - (a[1].at || 0)).slice(0, 80));
+  try {
+    const db = await getFirestore();
+    await db.setDoc(db.doc(db.instance, 'trips', SHARE_CONFIG.tripId, 'foodLog', id),
+      { name, color, items, updatedAt: db.serverTimestamp() });
+    appLog('info', 'foodlog', `上傳踩店紀錄成功（${Object.keys(items).length} 筆）`);
+  } catch (err) {
+    if (err && err.code === 'permission-denied') {
+      foodLogDisabled = true;
+      appLog('warn', 'foodlog', '踩店紀錄全家同步還不能用（Firestore 規則還沒加上 foodLog），先只存手機');
+      refreshFoodLogBox();
+    } else {
+      console.warn('[踩店] 同步失敗，下次修改時會再試：', err);
+    }
+  }
+}
+
+// 雲端上自己的紀錄跟手機上的合併：同一家店看誰的時間比較新
+function mergeOwnFoodLog(cloudItems) {
+  let changed = false, needPush = false;
+  Object.entries(cloudItems || {}).forEach(([sid, it]) => {
+    const local = foodLog[sid];
+    if (!local || (it.at || 0) > (local.at || 0)) { foodLog[sid] = it; changed = true; }
+  });
+  Object.entries(foodLog).forEach(([sid, it]) => {
+    const c = cloudItems && cloudItems[sid];
+    if (!c || (it.at || 0) > (c.at || 0)) needPush = true;
+  });
+  if (changed) saveFoodLogLocal();
+  return { changed, needPush };
+}
+
+async function startFoodLogListener() {
+  if (foodLogListening || !memberIdentity) return;
+  foodLogListening = true;
+  try {
+    const db = await getFirestore();
+    db.onSnapshot(
+      db.collection(db.instance, 'trips', SHARE_CONFIG.tripId, 'foodLog'),
+      (snap) => {
+        const next = {};
+        let own = null;
+        snap.forEach(d => {
+          if (memberIdentity && d.id === memberIdentity.id) own = d.data();
+          else next[d.id] = d.data();
+        });
+        familyFoodLogs = next;
+        const fromCache = !!(snap.metadata && snap.metadata.fromCache);
+        if (!fromCache) {
+          const { changed, needPush } = mergeOwnFoodLog(own && own.items);
+          if (changed) renderList();
+          if (needPush) scheduleFoodLogSync();
+        }
+        refreshFoodLogBox();
+      },
+      (err) => {
+        if (err && err.code === 'permission-denied') {
+          foodLogDisabled = true;
+          appLog('warn', 'foodlog', '讀不到家人的踩店紀錄（Firestore 規則還沒加上 foodLog）');
+          refreshFoodLogBox();
+        } else console.warn('[踩店] 即時同步中斷：', err);
+      }
+    );
+  } catch (err) {
+    foodLogListening = false;
+    console.warn('[踩店] 無法連上即時同步：', err);
+  }
+}
+
+// 📋 整理成一段文字，直接貼到 IG、Threads 或 LINE
+function buildFoodSummaryText(includeFamily) {
+  const rows = myFoodItems()
+    .map(([sid, it]) => ({ s: SPOTS.find(x => x.id === sid), it }))
+    .filter(x => x.s)
+    .sort((a, b) => b.it.stars - a.it.stars || a.it.at - b.it.at);
+  const lines = ['🍵 我的京都踩店清單（2026/9/29–10/3）', ''];
+  rows.forEach(({ s, it }, i) => {
+    lines.push(`${i + 1}. ${s.name}｜${s.area}｜${starText(it.stars)}`);
+    if (it.note) lines.push(`   「${it.note}」`);
+    if (s.mustTry) lines.push(`   必點：${s.mustTry}`);
+    if (includeFamily) {
+      Object.values(familyFoodLogs).forEach(m => {
+        const f = m.items && m.items[s.id];
+        if (f && !f.del && f.stars) lines.push(`   ${m.name || '家人'}：${starText(f.stars)}${f.note ? `「${f.note}」` : ''}`);
+      });
+    }
+  });
+  if (!rows.length) lines.push('（還沒有踩店紀錄）');
+  lines.push('', '#京都 #京都美食 #京都踩店');
+  return lines.join('\n');
+}
+
+function showFoodSummary() {
+  appLog('info', 'ui', '開啟「我的踩店清單」');
+  activeSpotId = null;
+  const hasFamily = Object.keys(familyFoodLogs).length > 0;
+  const panel = document.getElementById('detailBody');
+  panel.innerHTML = `
+    <div class="detail-header"><h2>📋 我的京都踩店清單</h2></div>
+    <div class="detail-area">在美食店的介紹裡按「✅ 踩過了」就會出現在這裡。整段複製，直接貼到 IG、Threads 或 LINE。</div>
+    ${hasFamily ? '<label class="foodsum-family"><input type="checkbox" id="foodSumFamily"> 一起列出家人的星星和心得</label>' : ''}
+    <textarea class="foodsum-text" id="foodSumText" rows="14" readonly></textarea>
+    <div class="foodlog-actions">
+      <button type="button" class="foodlog-save" id="foodSumCopy">📋 複製</button>
+      ${navigator.share ? '<button type="button" class="foodlog-summary" id="foodSumShare">📤 分享</button>' : ''}
+    </div>
+    <div class="foodlog-msg" id="foodSumMsg"></div>`;
+  const ta = document.getElementById('foodSumText');
+  const fam = document.getElementById('foodSumFamily');
+  const fill = () => { ta.value = buildFoodSummaryText(fam && fam.checked); };
+  fill();
+  if (fam) fam.addEventListener('change', fill);
+  document.getElementById('foodSumCopy').addEventListener('click', async () => {
+    const msg = document.getElementById('foodSumMsg');
+    try { await navigator.clipboard.writeText(ta.value); msg.textContent = '✅ 已複製，去 IG／Threads／LINE 貼上就好'; }
+    catch (e) { ta.removeAttribute('readonly'); ta.select(); msg.textContent = '請長按上面的文字，選「全選 → 複製」'; }
+  });
+  const shareBtn = document.getElementById('foodSumShare');
+  if (shareBtn) shareBtn.addEventListener('click', () => navigator.share({ text: ta.value }).catch(() => {}));
+  if (mobileQuery.matches) openDetailSheet();
 }
 
 // ---------- 打電話給日本人：一鍵開 VoiceTra 翻譯 ----------
@@ -1845,6 +2086,7 @@ async function loadOrCreateMemberDoc(user) {
     clearTimeout(memberSyncTimer);
     if (pushNeeded) pushMemberDoc();
     startMembersListener();
+    startFoodLogListener();
   } catch (err) {
     console.warn('[跳棋] 登入後讀取/建立身份失敗：', err);
     alert('登入成功，但連線資料失敗，請確認網路連線後重新整理頁面再試一次。');
@@ -2275,7 +2517,7 @@ function logOthersChange(prev, next) {
 // 也接得住「剛從 Google 登入頁面導回來」（signInWithRedirect）的情況。
 async function initMemberAuth() {
   renderMemberBox();   // 不管有沒有快取的身份，先畫出畫面（沒有的話就是「登入」按鈕）
-  if (memberIdentity) startMembersListener();
+  if (memberIdentity) { startMembersListener(); startFoodLogListener(); }
   try {
     const auth = await getAuthSvc();
     try {
