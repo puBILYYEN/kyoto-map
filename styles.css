@@ -1241,3 +1241,19 @@ html, body {
 .call-tip { flex-basis: 100%; font-size: 12px; line-height: 1.6; color: #555; }
 .phrase-tel .voicetra-btn { margin-top: 4px; padding: 5px 10px; font-size: 13px; }
 .voicetra-hint { font-size: 12px; color: #1565c0; }
+
+/* 美食：話題小類按鈕與「回台灣可以這樣聊」 */
+.food-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.food-chip {
+  border: 1px solid #c62828; background: #fff; color: #c62828; border-radius: 999px;
+  padding: 4px 10px; font: inherit; font-size: 13px; cursor: pointer;
+}
+.food-chip.active { background: #c62828; color: #fff; }
+.talk-box {
+  margin: 10px 0; padding: 10px 12px; border-left: 4px solid #c62828;
+  background: #fdecea; border-radius: 6px;
+}
+.talk-head { font-size: 12px; font-weight: 700; color: #c62828; margin-bottom: 4px; }
+.talk-text { font-size: 15px; line-height: 1.7; font-weight: 600; }
+.talk-tags { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
+.talk-tag { font-size: 12px; background: #fff; border: 1px solid #f3b8b3; border-radius: 999px; padding: 2px 8px; }

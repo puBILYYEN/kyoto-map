@@ -10,7 +10,7 @@ const write = (f, s) => fs.writeFileSync(file(f), s, 'utf8');
 
 function loadData(src) {
   return vm.runInNewContext((src == null ? read('data.js') : src) +
-    '\n;({ SPOTS, CATEGORY_META, BOOKING_META })');
+    '\n;({ SPOTS, CATEGORY_META, BOOKING_META, FOOD_TAGS: typeof FOOD_TAGS === "undefined" ? {} : FOOD_TAGS })');
 }
 
 // 每個景點在 data.js 裡是從「{ id:'x01'」那行開始、到第一個以「},」結尾的行為止

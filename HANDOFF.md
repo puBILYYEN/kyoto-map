@@ -99,6 +99,8 @@ git checkout <開發分支>
   booking:{ level:'required', note:'說明' },     // 選填：permit / required / recommended
   labelSide:'right',                             // 選填：地圖標籤貼左或右，避免重疊
   shape:'buddha',                                // 選填：triangle / star / ingot / buddha / diamond / invtriangle / heart / heartstill（新形狀要同時加 app.js SHAPE_BASE_COLOR、styles.css、tools/check.js SHAPES）
+  foodTags:['japan','photo'],                   // 美食店（categories 含 food）必填：話題小類，key 見 data.js FOOD_TAGS
+  talk:'回台灣可以這樣聊的一句話',               // 美食店必填：只寫查證過的事實（美食是為了回台灣跟朋友聊天）
   desc:'介紹文字' },
 ```
 

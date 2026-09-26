@@ -8,6 +8,8 @@
 //   --cat 可以寫多個分類，用逗號分開：--cat temple,enmusubi（第一個決定 id 開頭字母）
 //   --prefix x   選填。全新分類會自動挑一個沒用過的 id 開頭字母，通常不用寫
 //   --force      名稱跟既有景點重複時仍然新增
+//   美食店另外要加（小類 key 見 data.js 的 FOOD_TAGS，可多個用逗號分開）：
+//     --tags japan,photo --talk "回台灣可以這樣聊的一句話（只寫查證過的事實）"
 // 查分類 key：node tools/find.js（不加關鍵字）
 const { read, loadData, spotBlocks, inKansai, parseNum, parseArgs, jsStr, safeWriteData } = require('./lib');
 
@@ -62,7 +64,15 @@ if (prefix) {
 const nums = d.SPOTS.filter(s => s.id[0] === prefix).map(s => Number(s.id.slice(1)));
 const id = prefix + String((nums.length ? Math.max(...nums) : 0) + 1).padStart(2, '0');
 
-const parts = [`  { id:'${id}', categories:[${cats.map(c => `'${c}'`).join(',')}], name:${jsStr(a.name)}, area:${jsStr(a.area)}, lat:${lat}, lng:${lng},`];
+const foodTags = a.tags && a.tags !== true ? String(a.tags).split(/[,，]/).map(t => t.trim()).filter(Boolean) : [];
+const badTag = foodTags.filter(t => !(d.FOOD_TAGS || {})[t]);
+if (badTag.length) {
+  console.error(`❌ 美食小類不存在：${badTag.join(', ')}。可用：${Object.entries(d.FOOD_TAGS || {}).map(([k, v]) => `${k}（${v}）`).join('、')}`);
+  process.exit(1);
+}
+const foodPart = (foodTags.length ? ` foodTags:[${foodTags.map(t => `'${t}'`).join(',')}],` : '')
+  + (a.talk && a.talk !== true ? ` talk:${jsStr(a.talk)},` : '');
+const parts = [`  { id:'${id}', categories:[${cats.map(c => `'${c}'`).join(',')}],${foodPart} name:${jsStr(a.name)}, area:${jsStr(a.area)}, lat:${lat}, lng:${lng},`];
 if (a.address && a.address !== true) parts.push(`    address:${jsStr(a.address)},`);
 if (a.hours && a.hours !== true) parts.push(`    hours:${jsStr(a.hours)},`);
 parts.push(`    desc:${jsStr(a.desc)} },`);

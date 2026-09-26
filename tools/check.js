@@ -40,7 +40,7 @@ for (const f of [...JS_FILES, ...TOOL_FILES]) {
 // ---------- 2. data.js 內容 ----------
 let D = null;
 try {
-  D = vm.runInNewContext(read('data.js') + '\n;({ SPOTS, CATEGORY_META, BOOKING_META, TRIP_PREP, PHRASES, TAX_REFUND })');
+  D = vm.runInNewContext(read('data.js') + '\n;({ SPOTS, CATEGORY_META, BOOKING_META, TRIP_PREP, PHRASES, TAX_REFUND, FOOD_TAGS })');
 } catch (e) {
   err(`data.js 無法執行：${e.message}`);
 }
@@ -65,6 +65,8 @@ if (D) {
     }
     if (s.booking && !D.BOOKING_META[s.booking.level]) err(`${where}：booking.level「${s.booking.level}」不存在`);
     if (s.shape && !SHAPES.includes(s.shape)) err(`${where}：shape「${s.shape}」不存在（可用：${SHAPES.join('/')}）`);
+    if (s.foodTags && (!Array.isArray(s.foodTags) || s.foodTags.some(t => !(D.FOOD_TAGS || {})[t]))) err(`${where}：foodTags 有不存在的小類（可用：${Object.keys(D.FOOD_TAGS || {}).join('/')}）`);
+    if (s.categories.includes('food') && !s.talk) warn(`${where}：美食店沒有 talk（回台灣可以這樣聊）`);
     if (s.labelSide && !['left', 'right'].includes(s.labelSide)) err(`${where}：labelSide 只能是 left 或 right`);
   });
 }

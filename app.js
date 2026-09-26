@@ -7,6 +7,7 @@ function appLog(level, tag, msg) {
 }
 
 let activeCategory = 'all';
+let activeFoodTag = null;   // 美食分類裡的話題小類（FOOD_TAGS 的 key），null＝全部
 let searchTerm = '';
 let bookingOnly = false;  // 只顯示需要預約或事前申請的景點
 let selectedIds = [];     // 依點選順序排列，用於產生路線
@@ -270,7 +271,8 @@ function getVisibleSpots() {
       s.name.toLowerCase().includes(term) ||
       s.area.toLowerCase().includes(term);
     const bookingOk = !bookingOnly || !!s.booking;
-    return catOk && searchOk && bookingOk;
+    const foodTagOk = activeCategory !== 'food' || !activeFoodTag || (s.foodTags || []).includes(activeFoodTag);
+    return catOk && searchOk && bookingOk && foodTagOk;
   });
 }
 
@@ -735,11 +737,37 @@ function renderTabs() {
   select.addEventListener('change', () => {
     appLog('info', 'ui', `切換分類 → ${select.value}`);
     activeCategory = select.value;
+    activeFoodTag = null;
+    renderTabs();
     renderList();
     updateMarkerVisibility();
     fitToVisibleSpots();
   });
   wrap.appendChild(select);
+
+  // 美食店會很多，選「美食」時多一排話題小類，點一下只看那一類
+  if (activeCategory === 'food' && typeof FOOD_TAGS !== 'undefined') {
+    const chips = document.createElement('div');
+    chips.className = 'food-chips';
+    const foods = SPOTS.filter(s => s.categories.includes('food'));
+    [[null, '全部'], ...Object.entries(FOOD_TAGS)].forEach(([key, label]) => {
+      const n = key ? foods.filter(s => (s.foodTags || []).includes(key)).length : foods.length;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'food-chip' + (activeFoodTag === key ? ' active' : '');
+      btn.textContent = `${label} ${n}`;
+      btn.addEventListener('click', () => {
+        appLog('info', 'ui', `美食小類 → ${key || '全部'}`);
+        activeFoodTag = key;
+        renderTabs();
+        renderList();
+        updateMarkerVisibility();
+        fitToVisibleSpots();
+      });
+      chips.appendChild(btn);
+    });
+    wrap.appendChild(chips);
+  }
 }
 
 // ---------- 景點清單 ----------
@@ -807,6 +835,7 @@ function showDetail(spotId) {
       <h2>${spot.name}</h2>
     </div>
     <div class="detail-area">${spot.area}</div>
+    ${buildTalkBox(spot)}
     ${buildHours(spot)}
     ${buildBookingBox(spot)}
     <div class="detail-desc">${spot.desc}</div>
@@ -821,6 +850,15 @@ function showDetail(spotId) {
   if (mobileQuery.matches) openDetailSheet();
   renderList();
   updateMarkerVisibility();
+}
+
+// 美食店的「回台灣可以這樣聊」＋話題小類
+function buildTalkBox(spot) {
+  if (!spot.talk) return '';
+  const tags = (spot.foodTags || [])
+    .map(k => (typeof FOOD_TAGS !== 'undefined' && FOOD_TAGS[k]) ? `<span class="talk-tag">${FOOD_TAGS[k]}</span>` : '')
+    .join('');
+  return `<div class="talk-box"><div class="talk-head">💬 回台灣可以這樣聊</div><div class="talk-text">${spot.talk}</div>${tags ? `<div class="talk-tags">${tags}</div>` : ''}</div>`;
 }
 
 // ---------- 打電話給日本人：一鍵開 VoiceTra 翻譯 ----------
