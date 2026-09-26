@@ -996,6 +996,7 @@ function showPrep() {
   activeSpotId = null;
   document.getElementById('detailBody').innerHTML = `
     <div class="detail-header"><h2>${TRIP_PREP.title}</h2></div>
+    <button type="button" class="ask-play-btn" id="packingBtn">${PACKING_LIST.title}（打開來勾選）</button>
     <div class="detail-area">${TRIP_PREP.note}</div>
     ${TRIP_PREP.groups.map(g => `
       <div class="prep-group">
@@ -1003,6 +1004,66 @@ function showPrep() {
         <ul>${g.items.map(item => `<li>${item}</li>`).join('')}</ul>
       </div>`).join('')}
   `;
+  document.getElementById('packingBtn').addEventListener('click', showPacking);
+  if (mobileQuery.matches) openDetailSheet();
+  renderList();
+  updateMarkerVisibility();
+}
+
+// 出國準備清單：勾選狀態存在這支手機（每個人勾自己的行李），用項目文字當 key
+const PACKING_KEY = 'kyotoMapPacking';
+function loadPacking() {
+  try { return JSON.parse(localStorage.getItem(PACKING_KEY) || '{}') || {}; } catch (e) { return {}; }
+}
+function savePacking(done) {
+  try { localStorage.setItem(PACKING_KEY, JSON.stringify(done)); } catch (e) { /* 私密瀏覽存不了，只是下次不會記得 */ }
+}
+
+function showPacking() {
+  appLog('info', 'ui', '開啟「出國準備清單」');
+  activeSpotId = null;
+  const done = loadPacking();
+  const all = PACKING_LIST.groups.flatMap(g => g.items);
+  const count = () => all.filter(t => done[t]).length;
+  document.getElementById('detailBody').innerHTML = `
+    <div class="detail-header"><h2>${PACKING_LIST.title}</h2></div>
+    <div class="detail-area">${PACKING_LIST.note}</div>
+    <div class="packing-progress">已準備 <b id="packingCount">${count()}</b> / ${all.length}</div>
+    ${PACKING_LIST.groups.map(g => `
+      <div class="prep-group">
+        <h3>${g.heading}</h3>
+        <ul class="tax-checklist">
+          ${g.items.map(t => `
+            <li class="${done[t] ? 'done' : ''}">
+              <label><input type="checkbox" class="packing-check" data-item="${t}"${done[t] ? ' checked' : ''}><span>${t}</span></label>
+            </li>`).join('')}
+        </ul>
+      </div>`).join('')}
+    <div class="prep-group">
+      <h3>✈️ 打包提醒</h3>
+      <ul>${PACKING_LIST.tips.map(t => `<li>${t}</li>`).join('')}</ul>
+    </div>
+    <div class="packing-actions">
+      <button type="button" class="share-btn" id="packingBack">↩️ 回到行前準備</button>
+      <button type="button" class="share-btn" id="packingReset">全部取消勾選</button>
+    </div>
+  `;
+  document.querySelectorAll('.packing-check').forEach(box => {
+    box.addEventListener('change', () => {
+      const item = box.dataset.item;
+      if (box.checked) done[item] = true; else delete done[item];
+      savePacking(done);
+      box.closest('li').classList.toggle('done', box.checked);
+      document.getElementById('packingCount').textContent = count();
+    });
+  });
+  document.getElementById('packingBack').addEventListener('click', showPrep);
+  document.getElementById('packingReset').addEventListener('click', () => {
+    if (!confirm('確定要把出國準備清單全部取消勾選嗎？')) return;
+    savePacking({});
+    appLog('info', 'ui', '出國準備清單全部取消勾選');
+    showPacking();
+  });
   if (mobileQuery.matches) openDetailSheet();
   renderList();
   updateMarkerVisibility();

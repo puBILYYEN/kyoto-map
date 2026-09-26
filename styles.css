@@ -510,6 +510,10 @@ html, body {
   accent-color: var(--accent);
 }
 .tax-checklist li.done span { color: var(--text-muted); text-decoration: line-through; }
+.packing-progress { margin: 10px 0 4px; font-size: 15px; }
+.packing-progress b { font-size: 18px; color: var(--accent); }
+.packing-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+#packingBtn { margin: 10px 0 12px; }
 
 .phrase-tel li {
   display: flex;
