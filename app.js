@@ -857,7 +857,7 @@ function buildSupplyBox(spot) {
     </details>`;
 }
 
-// 颱風、地震時常常會斷網，所以有網路時先把「飯店＋採購路線上那幾家店」
+// 颱風、地震時常常會斷網，所以有網路時先把「飯店＋採購路線上那幾家店＋備案」
 // 周圍的底圖圖磚存進手機（kyoto-tiles-pinned，sw.js 不會自動清掉它），
 // 斷網時地圖上的愛心旁邊照樣看得到街道。愛心本身是 DOM 元素，
 // 資料在 data.js（已經離線快取），本來就不用網路。
@@ -873,7 +873,7 @@ function lngLatToTile(lng, lat, z) {
 async function precacheDisasterTiles() {
   try {
     if (!navigator.onLine || !('caches' in window) || typeof DISASTER_ROUTE === 'undefined') return;
-    const pts = [DISASTER_ROUTE.fromSpot, ...(DISASTER_ROUTE.stops || [])]
+    const pts = [DISASTER_ROUTE.fromSpot, ...(DISASTER_ROUTE.stops || []), ...(DISASTER_ROUTE.backup || [])]
       .map(id => SPOTS.find(s => s.id === id)).filter(Boolean);
     if (!pts.length) return;
     const pad = 0.012;   // 往外多抓約 1 公里
