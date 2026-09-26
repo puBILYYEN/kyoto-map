@@ -779,7 +779,8 @@ html, body {
 .marker-shape-buddha::before,
 .marker-shape-diamond::before,
 .marker-shape-invtriangle::before,
-.marker-shape-heart::before {
+.marker-shape-heart::before,
+.marker-shape-heartstill::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -828,6 +829,10 @@ html, body {
 .marker-shape-heart::before {
   clip-path: polygon(50% 100%, 12% 62%, 2% 42%, 2% 24%, 10% 10%, 24% 3%, 38% 6%, 50% 20%, 62% 6%, 76% 3%, 90% 10%, 98% 24%, 98% 42%, 88% 62%);
   animation: markerColorBlinkPink 0.8s ease-in-out infinite;
+}
+/* 不閃爍的愛心：採購路線的備案（路線上買不到才去），跟路線同色但不閃 */
+.marker-shape-heartstill::before {
+  clip-path: polygon(50% 100%, 12% 62%, 2% 42%, 2% 24%, 10% 10%, 24% 3%, 38% 6%, 50% 20%, 62% 6%, 76% 3%, 90% 10%, 98% 24%, 98% 42%, 88% 62%);
 }
 @keyframes markerColorBlinkPink {
   0%, 100% { background: #e91e63; }

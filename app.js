@@ -61,7 +61,7 @@ function persistSelection() {
 
 // 特殊標記形狀（三角形/星形/元寶/坐佛）各自的底色，renderMarkers() 也是
 // 在檔案開頭就同步執行，要跟上面 othersState 一樣早宣告避免 TDZ。
-const SHAPE_BASE_COLOR = { triangle: '#ff8f00', star: '#ffcc00', ingot: '#ffcc00', buddha: '#a67c00', diamond: '#00b8d4', invtriangle: '#e00000', heart: '#e91e63' };
+const SHAPE_BASE_COLOR = { triangle: '#ff8f00', star: '#ffcc00', ingot: '#ffcc00', buddha: '#a67c00', diamond: '#00b8d4', invtriangle: '#e00000', heart: '#e91e63', heartstill: '#e91e63' };
 
 // 有些景點跟境內附屬的店家／設施座標完全相同（例如龍安寺跟西源院、
 // 貴船神社跟貴船溪谷），圖釘會疊在同一個像素上，沒被選取的那個會把
@@ -910,8 +910,13 @@ function buildRouteStops() {
     .map(id => SPOTS.find(s => s.id === id)).filter(Boolean)
     .map(s => `<li><button type="button" class="supply-name" data-supply="${s.id}">${s.name}</button>${s.hours ? `<span class="supply-meta">${s.hours}</span>` : ''}</li>`)
     .join('');
+  const backup = (DISASTER_ROUTE.backup || [])
+    .map(id => SPOTS.find(s => s.id === id)).filter(Boolean)
+    .map(s => `<li><button type="button" class="supply-name" data-supply="${s.id}">${s.name}</button><span class="supply-meta">${s.hours || ''}${s.hours ? '・' : ''}直線 ${formatDistance(distanceKm(SPOTS.find(h => h.id === DISASTER_ROUTE.fromSpot), s))}</span></li>`)
+    .join('');
   return `<a class="supply-route" href="${DISASTER_ROUTE.url}" target="_blank" rel="noopener noreferrer">${DISASTER_ROUTE.label}</a>
-    ${stops ? `<div class="supply-gps-note">路線依序經過（地圖上的 💗 閃爍愛心）：</div><ol class="supply-list">${stops}</ol>` : ''}`;
+    ${stops ? `<div class="supply-gps-note">路線依序經過（地圖上的 💗 閃爍愛心）：</div><ol class="supply-list">${stops}</ol>` : ''}
+    ${backup ? `<div class="supply-gps-note">備案（地圖上不閃爍的愛心）：災情嚴重要撐比較久、路線上的店被買光、或需要水箱等大件東西時，再騎機車去：</div><ul class="supply-list">${backup}</ul>` : ''}`;
 }
 
 function bindSupplyBox(root) {

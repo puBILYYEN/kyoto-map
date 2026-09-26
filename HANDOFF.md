@@ -98,7 +98,7 @@ git checkout <開發分支>
   hours:'8:30–17:00',                            // 選填，不確定就不要填
   booking:{ level:'required', note:'說明' },     // 選填：permit / required / recommended
   labelSide:'right',                             // 選填：地圖標籤貼左或右，避免重疊
-  shape:'buddha',                                // 選填：triangle / star / ingot / buddha / diamond / invtriangle / heart（新形狀要同時加 app.js SHAPE_BASE_COLOR、styles.css、tools/check.js SHAPES）
+  shape:'buddha',                                // 選填：triangle / star / ingot / buddha / diamond / invtriangle / heart / heartstill（新形狀要同時加 app.js SHAPE_BASE_COLOR、styles.css、tools/check.js SHAPES）
   desc:'介紹文字' },
 ```
 
