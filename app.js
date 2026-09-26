@@ -33,6 +33,11 @@ let lastPersistedKey = '';
 let ownSelectionReconciled = false;
 restoreSavedSelection();
 
+// 電視版「跟著手機」：登入後打開哪個景點的介紹，就寫到 Firestore trips/kyoto2026/viewing/{uid}，
+// 電視版會跟著飛過去顯示。跟選點資料分開放，規則還沒發布時只有這個功能不能用，不影響選點同步。
+let viewingTimer = null;
+let viewingDisabled = false;
+
 function restoreSavedSelection() {
   try {
     const saved = JSON.parse(localStorage.getItem(SELECTION_KEY) || 'null');
@@ -785,6 +790,7 @@ function showDetail(spotId) {
   const spot = SPOTS.find(s => s.id === spotId);
   const panel = document.getElementById('detailBody');
   appLog('info', 'ui', `開啟景點 ${spotId}${spot ? ' ' + spot.name : '（找不到這個 id）'}`);
+  if (spot) pushViewing(spot.id);
   if (!spot) {
     panel.innerHTML = '<div class="detail-placeholder">點選左側清單或地圖上的標記，查看景點詳細介紹</div>';
     return;
@@ -1798,6 +1804,28 @@ function reconcileOwnSelection(cloud) {
   updateMarkerVisibility();
   clearTimeout(memberSyncTimer);   // 內容跟雲端一樣，不用再寫回去
   return 'adopted';
+}
+
+// 告訴電視版「我現在在看哪個景點」。連續點好幾個景點時只寫最後一個。
+function pushViewing(spotId) {
+  if (!memberIdentity || viewingDisabled) return;
+  clearTimeout(viewingTimer);
+  viewingTimer = setTimeout(async () => {
+    const uid = memberIdentity && memberIdentity.id;
+    if (!uid) return;
+    try {
+      const db = await getFirestore();
+      await db.setDoc(db.doc(db.instance, 'trips', SHARE_CONFIG.tripId, 'viewing', uid), { spotId, at: db.serverTimestamp() });
+    } catch (err) {
+      if (err && err.code === 'permission-denied') {
+        // 規則還沒發布：這次開網頁就不再試，免得每點一個景點都失敗一次
+        viewingDisabled = true;
+        appLog('warn', '跳棋', '電視跟著看景點的功能還不能用（Firestore 規則還沒加上 viewing）');
+      } else {
+        console.warn('[跳棋] 告訴電視版目前在看哪個景點失敗：', err);
+      }
+    }
+  }, 500);
 }
 
 // 選點有變動時就 debounce 一下再同步，避免連續勾選時瘋狂寫入

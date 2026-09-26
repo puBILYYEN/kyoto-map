@@ -69,8 +69,19 @@ body {
 .tv-map-body { flex: 1; display: flex; gap: 1.5vw; margin: 0 3vw 3vh; min-height: 0; }
 #tvMap { flex: 1; border-radius: 1.4vh; overflow: hidden; }
 .tv-map-list { width: 26%; margin: 0; padding: 1vh 1vh 1vh 5vh; background: var(--panel); border-radius: 1.4vh; overflow-y: auto; scrollbar-width: none; font-size: 2.5vh; line-height: 1.5; }
-.tv-map-list li { margin: 0.6vh 0; }
+.tv-map-list { list-style: none; padding-left: 1.4vh; }
+.tv-map-list li { margin: 0.6vh 0; display: flex; align-items: center; gap: 0.8vh; }
+.tv-map-list li.tv-list-head { font-weight: 700; margin-top: 1.6vh; }
+.tv-map-list li.tv-list-head:first-child { margin-top: 0.4vh; }
+.tv-mini { flex-shrink: 0; min-width: 2.8vh; height: 2.8vh; border-radius: 50%; color: #fff; font-size: 1.7vh; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; border: 0.25vh solid #fff; }
+/* 白板筆：某人手機上正在看的景點，用他的顏色標出名字 */
+.tv-pen { color: #fff; font-weight: 700; font-size: 2.2vh; padding: 0.4vh 1.2vh; border-radius: 99vh; border: 0.3vh solid #fff; white-space: nowrap; box-shadow: 0 0.4vh 1.2vh rgba(0, 0, 0, 0.5); }
 .tv-map-list li.tv-new { color: var(--focus); font-weight: 700; }
+.tv-map-list li.tv-viewing { background: var(--accent); color: #fff; border-radius: 0.8vh; padding: 0 0.8vh; }
+.tv-view-card { position: absolute; left: 4.5vw; bottom: 5vh; width: 38%; background: rgba(27, 26, 24, 0.92); border: 0.35vh solid var(--accent); border-radius: 1.4vh; padding: 1.6vh 2vh; font-size: 2.3vh; line-height: 1.6; box-shadow: 0 1vh 3vh rgba(0, 0, 0, 0.5); }
+.tv-view-card[hidden] { display: none; }
+.tv-view-card h3 { margin: 0.4vh 0; font-size: 3.2vh; }
+.tv-view-card p { margin: 0.8vh 0 0; }
 .tv-map-msg { position: absolute; inset: 30% 20%; background: var(--panel); border-radius: 1.4vh; padding: 4vh; font-size: 3vh; line-height: 1.6; text-align: center; }
 .tv-map-msg[hidden] { display: none; }
 .tv-pin { width: 4vh; height: 4vh; border-radius: 50%; border: 0.4vh solid #fff; color: #fff; font-weight: 700; font-size: 2.2vh; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0.6vh rgba(0, 0, 0, 0.6); }
