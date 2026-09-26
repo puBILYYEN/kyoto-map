@@ -809,6 +809,7 @@ function showDetail(spotId) {
     ${buildHours(spot)}
     ${buildBookingBox(spot)}
     <div class="detail-desc">${spot.desc}</div>
+    ${buildCallBar(spot)}
     <a class="detail-link" href="${buildPlaceUrl(spot)}" target="_blank" rel="noopener noreferrer">📍 在 Google 地圖上看（照片・評價・營業時間）</a>
     ${buildSupplyBox(spot)}
   `;
@@ -819,6 +820,46 @@ function showDetail(spotId) {
   if (mobileQuery.matches) openDetailSheet();
   renderList();
   updateMarkerVisibility();
+}
+
+// ---------- 打電話給日本人：一鍵開 VoiceTra 翻譯 ----------
+// VoiceTra 是日本政府研究機構 NICT 出的免費語音翻譯 App：說中文，它念日文給對方聽，
+// 對方回答再翻成中文。只在手機顯示（電腦不能打電話）。
+// Android 用 intent 直接叫出 App，沒裝就跳 Google Play；iPhone 沒有公開的
+// 開啟網址，只能開 App Store 頁面，有裝的話那頁會顯示「打開」。
+const VOICETRA_PLAY = 'https://play.google.com/store/apps/details?id=jp.go.nict.voicetra';
+const VOICETRA_APPSTORE = 'https://apps.apple.com/app/id581137577';
+function voicetraUrl() {
+  if (/Android/i.test(navigator.userAgent)) {
+    return 'intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;'
+      + 'package=jp.go.nict.voicetra;S.browser_fallback_url=' + encodeURIComponent(VOICETRA_PLAY) + ';end';
+  }
+  return VOICETRA_APPSTORE;
+}
+function voicetraButton(label = '🗣️ 開 VoiceTra 翻譯') {
+  if (!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) return '';
+  // Android 的 intent 網址在同一個分頁開就好（開新分頁會留下一個空白頁）
+  const target = /Android/i.test(navigator.userAgent) ? '' : ' target="_blank" rel="noopener noreferrer"';
+  return `<a class="voicetra-btn" href="${voicetraUrl()}"${target}
+    onclick="appLog('info','voicetra','按了開 VoiceTra')">${label}</a>`;
+}
+const VOICETRA_FACE_TIP = '說中文，VoiceTra 會念日文給對方聽；對方回答前，先把翻譯方向切換成「日本語 → 中文」，再讓對方對著手機說，就會翻成中文。';
+// 當面跟日本人說話的地方（景點、日語小抄、退稅、問路）共用的按鈕＋說明
+function voicetraFaceBlock(label) {
+  const vt = voicetraButton(label);
+  return vt ? `<div class="call-bar">${vt}<div class="call-tip">${VOICETRA_FACE_TIP}</div></div>` : '';
+}
+// 介紹裡有日本電話號碼的景點（店家、租車行、預約的體驗），列出撥號＋VoiceTra
+function buildCallBar(spot) {
+  const nums = [...new Set((spot.desc || '').match(/(?<![\d-])0\d{1,4}-\d{1,4}-\d{3,4}(?![\d-])/g) || [])];
+  // 沒有電話的景點也可能要當面問（買御守、點餐、問工作人員）
+  if (!nums.length) return voicetraFaceBlock('🗣️ 要跟店員或工作人員說話：開 VoiceTra 翻譯');
+  const vt = voicetraButton();
+  return `<div class="call-bar">
+    ${nums.map(n => `<a class="call-btn" href="tel:${n.replace(/-/g, '')}">📞 撥 ${n}</a>`).join('')}
+    ${vt}
+    ${vt ? '<div class="call-tip">通話中，同一支手機的 App 通常聽不到對方的聲音。建議用兩支手機：一支撥電話並開擴音，另一支開 VoiceTra 放在旁邊。說中文，它會念日文給對方聽；對方要回答時，把翻譯方向切換成「日本語 → 中文」，讓它聽擴音裡對方的聲音翻成中文。</div>' : ''}
+  </div>`;
 }
 
 // ---------- 天災時最近的補給點 ----------
@@ -1223,6 +1264,7 @@ function showPhrases() {
   document.getElementById('detailBody').innerHTML = `
     <div class="detail-header"><h2>${PHRASES.title}</h2></div>
     <div class="detail-area">${PHRASES.note}</div>
+    ${voicetraFaceBlock('🗣️ 小抄上沒有的句子：開 VoiceTra 翻譯')}
 
     <div class="phrase-address">
       <div class="phrase-address-label">${a.label}</div>
@@ -1240,6 +1282,7 @@ function showPhrases() {
             <a href="tel:${(e.dial || e.number).replace(/[^0-9+]/g, '')}">${e.number}</a>
             <b>${e.label}</b>
             <span>${e.note}</span>
+            ${e.ja ? voicetraButton() : ''}
           </li>`).join('')}
       </ul>
       <details class="lion-offices">
@@ -1289,6 +1332,7 @@ function showTaxRefund() {
       <button type="button" class="ask-play-btn" id="taxPlayBtn">🔊 播放日語</button>
       <div class="ask-warning" id="taxWarning" hidden></div>
       <div class="phrase-tip">${p.tip}</div>
+      ${voicetraFaceBlock('🗣️ 店員說的聽不懂：開 VoiceTra 翻譯')}
     </div>
 
     <div class="prep-group">
@@ -2572,6 +2616,7 @@ function openAskDirections(point, lngLat) {
     <button type="button" class="ask-play-btn" id="askPlayBtn">🔊 播放日語問路</button>
     <div class="ask-warning" id="askWarning" hidden></div>
     <div class="phrase-tip">${ASK_DIRECTIONS.tip}</div>
+    ${voicetraFaceBlock('🗣️ 聽不懂對方的回答：開 VoiceTra 翻譯')}
   `;
   document.getElementById('askPlayBtn').addEventListener('click', (e) => speakJapanese(phrase.ja, 'askWarning', e.currentTarget));
 
