@@ -782,7 +782,17 @@ function renderTabs() {
     sum.textContent = `📋 我的踩店清單 ${myFoodItems().length}`;
     sum.addEventListener('click', showFoodSummary);
     chips.appendChild(sum);
+    // 電腦用滑鼠滾輪也能左右捲（不用去拉那條細細的捲軸）
+    chips.addEventListener('wheel', (e) => {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && chips.scrollWidth > chips.clientWidth) {
+        chips.scrollLeft += e.deltaY;
+        e.preventDefault();
+      }
+    }, { passive: false });
     wrap.appendChild(chips);
+    // 重畫後保持在剛剛點的那顆按鈕看得到的位置
+    const act = chips.querySelector('.food-chip.active');
+    if (act) act.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 }
 

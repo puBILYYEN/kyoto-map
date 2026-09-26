@@ -1243,7 +1243,13 @@ html, body {
 .voicetra-hint { font-size: 12px; color: #1565c0; }
 
 /* 美食：話題小類按鈕與「回台灣可以這樣聊」 */
-.food-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+/* 只佔一排、左右滑動，不要把下面的景點清單擠掉（使用者回報清單被擠到只剩一行） */
+.food-chips {
+  display: flex; flex-wrap: nowrap; gap: 6px; margin-top: 8px;
+  overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin;
+  padding-bottom: 4px; -webkit-overflow-scrolling: touch;
+}
+.food-chips .food-chip { flex: 0 0 auto; white-space: nowrap; }
 .food-chip {
   border: 1px solid #c62828; background: #fff; color: #c62828; border-radius: 999px;
   padding: 4px 10px; font: inherit; font-size: 13px; cursor: pointer;
@@ -1284,3 +1290,9 @@ html, body {
 .foodlog-shop { width: 100%; box-sizing: border-box; margin: 6px 0 2px; padding: 8px; border: 1px solid #e0c9c6; border-radius: 6px; font: inherit; font-size: 14px; }
 .foodlog-shops li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .foodlog-shop-del { margin-left: auto; border: none; background: none; color: #999; font-size: 16px; cursor: pointer; }
+/* 左右兩端淡出，提示「還可以滑，旁邊還有按鈕」 */
+.food-chips {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 10px, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 10px, #000 calc(100% - 28px), transparent 100%);
+  padding-left: 4px; padding-right: 24px;
+}

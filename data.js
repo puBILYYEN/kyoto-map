@@ -72,7 +72,7 @@ const FOOD_TAGS = {
   japan: '🇯🇵 日本才有',
   photo: '📸 好拍照',
   veg:   '🌱 素食特色',
-  street: '🏮 邊走邊吃（商店街・市場，一家一家記）',
+  street: '🏮 邊走邊吃',   // 商店街・市場，裡面每家店一家一家記
 };
 
 const TRIP_PREP = {
