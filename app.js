@@ -2252,16 +2252,47 @@ function showAskWarning(text, warnElId = 'askWarning') {
 // 手機的語音清單是開網頁後才慢慢載入的：第一次按播放時，日文語音常常還沒出現在清單裡。
 // 以前只等 0.4 秒就判定「沒裝日文語音」，而且那次不再重試，導致要按好幾次才會唸。
 // 現在網頁一打開就先開始載入並記住找到的日文語音；按下去還沒載好就最多等 3 秒。
+// 只要這支手機找到過一次日文語音，就記下來（JA_OK_KEY）：之後語音載入比較慢也不會再說「沒裝」，
+// 只會安靜等它載好；第一次打開網站時就主動檢查，沒有的話直接跳出教學（只跳一次，TTS_GUIDE_KEY）。
+const JA_OK_KEY = 'kyotoTtsJaOk';
+const TTS_GUIDE_KEY = 'kyotoTtsGuideShown';
 let cachedJaVoice = null;
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* 私密瀏覽存不了就算了 */ } }
 function findJaVoice() {
+  let v = null;
   try {
-    return speechSynthesis.getVoices().find(v => v.lang && v.lang.toLowerCase().replace('_', '-').startsWith('ja')) || null;
+    v = speechSynthesis.getVoices().find(x => x.lang && x.lang.toLowerCase().replace('_', '-').startsWith('ja')) || null;
   } catch (e) { return null; }
+  if (v) {
+    cachedJaVoice = v;
+    if (!lsGet(JA_OK_KEY)) { lsSet(JA_OK_KEY, v.name || 'ja'); appLog('info', 'ui', `這支手機有日文語音：${v.name}`); }
+  }
+  return v;
 }
 if ('speechSynthesis' in window) {
   try {
-    cachedJaVoice = findJaVoice();
-    speechSynthesis.addEventListener('voiceschanged', () => { cachedJaVoice = findJaVoice() || cachedJaVoice; });
+    findJaVoice();
+    speechSynthesis.addEventListener('voiceschanged', () => { findJaVoice(); });
+    // 第一次點網站任何地方時，用無聲的方式先把語音引擎叫醒，之後按播放才能馬上唸
+    document.addEventListener('pointerdown', () => {
+      try {
+        const warm = new SpeechSynthesisUtterance(' ');
+        warm.volume = 0;
+        speechSynthesis.speak(warm);
+      } catch (e) { /* ignore */ }
+    }, { once: true, capture: true });
+    // 第一次打開網站（手機）：幾秒內都沒找到日文語音，就先教會使用者設定好
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && !lsGet(JA_OK_KEY) && !lsGet(TTS_GUIDE_KEY)) {
+      const t0 = Date.now();
+      const check = setInterval(() => {
+        if (findJaVoice()) { clearInterval(check); return; }
+        if (Date.now() - t0 < 5000) return;
+        clearInterval(check);
+        lsSet(TTS_GUIDE_KEY, '1');
+        showTtsGuide(true);
+      }, 300);
+    }
   } catch (e) { /* 不支援就算了，按播放時會說明 */ }
 }
 
@@ -2288,29 +2319,78 @@ function speakJapanese(text, warnElId = 'askWarning') {
   const ready = cachedJaVoice || findJaVoice();
   if (ready) { cachedJaVoice = ready; speakWith(ready); return; }
 
-  // 還沒載入好：每 0.2 秒看一次，最多等 3 秒
+  // 還沒載入好：每 0.2 秒看一次。這支手機以前找到過日文語音的話，不會再說「沒裝」，
+  // 多等一下（8 秒），真的等不到就直接指定用日文唸，讓手機自己挑日文語音
+  const knownOk = !!lsGet(JA_OK_KEY);
   const startedAt = Date.now();
   const poll = setInterval(() => {
     const v = findJaVoice();
     if (v) {
       clearInterval(poll);
-      cachedJaVoice = v;
       speakWith(v);
       return;
     }
-    if (Date.now() - startedAt < 3000) return;
+    if (Date.now() - startedAt < (knownOk ? 8000 : 3000)) return;
     clearInterval(poll);
+    if (knownOk) {
+      appLog('warn', 'ui', '日文語音 8 秒還沒載好，直接指定 ja-JP 唸');
+      speakWith(null);
+      return;
+    }
     let langs = '';
     try { langs = [...new Set(speechSynthesis.getVoices().map(x => x.lang))].slice(0, 12).join(','); } catch (e) { /* ignore */ }
     appLog('warn', 'ui', `等了 3 秒還是找不到日文語音（語音清單：${langs || '空的'}）`);
-    showAskWarning(
-      '這台手機還沒有安裝日文語音，播放出來的發音會不準確（可能會變成用中文發音硬唸日文）。\n\n' +
-      '請到手機「設定」裡搜尋「文字轉語音」，選擇文字轉語音引擎的設定 → 安裝語音資料 → ' +
-      '下載「日本語」語音包，裝好後再回來按一次播放。\n\n' +
-      '這段時間可以先直接把畫面給對方看這句日文。',
-      warnElId
-    );
+    // 教學只給手機（電腦版不需要）；電腦上只留一行提示
+    const onPhone = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    showAskWarning(onPhone ? '這台手機還沒有日文語音，先直接把畫面給對方看這句日文。' : '這台電腦沒有日文語音，請直接把畫面給對方看這句日文。', warnElId);
+    if (onPhone) showTtsGuide();
   }, 200);
+}
+
+// 沒有日文語音時跳出的教學。網頁不能直接打開手機的系統設定（手機的安全限制）：
+// Android 用 intent 試著打開「文字轉語音」設定，打不開就改開 Play 商店的 Google 語音服務；
+// iPhone 完全不允許，只能照教學自己去設定。
+function showTtsGuide(firstVisit) {
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  let box = document.getElementById('ttsGuide');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'ttsGuide';
+    box.className = 'tts-guide-overlay';
+    document.body.appendChild(box);
+  }
+  const steps = isIOS ? [
+    '打開手機的「設定」App',
+    '點「輔助使用」→「朗讀內容」→「聲音」',
+    '點「日文」，選一個聲音（例如 Kyoko），按下載',
+    '下載完回到這裡，再按一次播放',
+  ] : [
+    '按下面的「📱 前往語音設定」（打不開的話：打開「設定」，在最上面搜尋「文字轉語音」）',
+    '「偏好的引擎」選「Google 語音服務」，按它旁邊的齒輪 ⚙️',
+    '點「安裝語音資料」→ 找到「日本語」→ 按下載',
+    '下載完回到這裡，再按一次播放',
+  ];
+  box.innerHTML = `
+    <div class="tts-guide-box" role="dialog" aria-label="安裝日文語音教學">
+      <h3>🔊 ${firstVisit ? '先把手機的日文語音裝好' : '這台手機還沒有日文語音'}</h3>
+      <p>${firstVisit ? '這個網站的「問路」和「退稅小幫手」會用手機唸日文給日本人聽，' : ''}沒有日文語音的話，播放出來會變成用中文發音硬唸日文，日本人聽不懂。照下面做一次就好，之後都能用：</p>
+      <ol>${steps.map(t => `<li>${t}</li>`).join('')}</ol>
+      <p class="tts-guide-note">${isIOS ? 'iPhone 不允許網頁直接打開「設定」，要請你自己打開。' : '在裝好之前，可以先直接把畫面給對方看日文。'}</p>
+      <div class="tts-guide-actions">
+        ${isAndroid ? '<button type="button" class="ask-play-btn" id="ttsGoSettings">📱 前往語音設定</button>' : ''}
+        <button type="button" class="share-btn" id="ttsGuideClose">我知道了</button>
+      </div>
+    </div>`;
+  box.hidden = false;
+  appLog('info', 'ui', '顯示安裝日文語音教學');
+  document.getElementById('ttsGuideClose').addEventListener('click', () => { box.hidden = true; });
+  const go = document.getElementById('ttsGoSettings');
+  if (go) go.addEventListener('click', () => {
+    appLog('info', 'ui', '按「前往語音設定」');
+    const fallback = encodeURIComponent('https://play.google.com/store/apps/details?id=com.google.android.tts');
+    location.href = `intent:#Intent;action=com.android.settings.TTS_SETTINGS;S.browser_fallback_url=${fallback};end`;
+  });
 }
 
 function openAskDirections(point, lngLat) {
