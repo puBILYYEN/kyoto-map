@@ -1091,7 +1091,7 @@ function showPhrases() {
       <ul class="phrase-tel">
         ${PHRASES.emergency.map(e => `
           <li>
-            <a href="tel:${e.number.replace(/[^0-9+]/g, '')}">${e.number}</a>
+            <a href="tel:${(e.dial || e.number).replace(/[^0-9+]/g, '')}">${e.number}</a>
             <b>${e.label}</b>
             <span>${e.note}</span>
           </li>`).join('')}
