@@ -850,7 +850,7 @@ function buildSupplyBox(spot) {
     <details class="supply-box"${spot.categories.includes('disaster') ? '' : ' open'}>
       <summary>🆘 天災時離這裡最近的補給點（食物・水・災難包）</summary>
       <div class="supply-body">${supplyListHtml(spot, spot.id)}</div>
-      <button type="button" class="supply-gps">📡 用我現在的位置找</button>
+      <button type="button" class="supply-gps">📡 用我現在的位置找，直接開 Google 導航</button>
       <div class="supply-gps-result"></div>
     </details>`;
 }
@@ -864,13 +864,24 @@ function bindSupplyBox(root) {
     const out = root.querySelector('.supply-gps-result');
     if (!navigator.geolocation) { out.textContent = '這支手機的瀏覽器不支援定位'; return; }
     out.textContent = '定位中…（第一次會問要不要允許位置，請按允許）';
+    // 定位要等幾秒，等完才開新分頁會被瀏覽器當成彈跳視窗擋掉，
+    // 所以按下去當下就先開一個空白分頁，定位好再把它導到 Google 導航。
+    const win = window.open('', '_blank');
+    if (win) win.document.write('<p style="font-size:20px;padding:20px">📡 定位中，找最近的補給點…</p>');
     navigator.geolocation.getCurrentPosition(pos => {
       const here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       appLog('info', 'supply', `用定位找補給點 ${here.lat.toFixed(4)},${here.lng.toFixed(4)}`);
-      out.innerHTML = supplyListHtml(here, null);
+      out.innerHTML = '<div class="supply-gps-note">已開 Google 導航到第 1 個；想改去別家，點下面的「🧭 導航」：</div>' + supplyListHtml(here, null);
       out.querySelectorAll('[data-supply]').forEach(btn =>
         btn.addEventListener('click', () => showDetail(btn.dataset.supply)));
+      const nearest = nearestSupplies(here, null, 1)[0];
+      if (!nearest) { if (win) win.close(); return; }
+      const url = `https://www.google.com/maps/dir/?api=1&origin=${here.lat},${here.lng}&destination=${nearest.s.lat},${nearest.s.lng}&travelmode=walking`;
+      appLog('info', 'supply', `開導航到 ${nearest.s.id} ${nearest.s.name}（${formatDistance(nearest.km)}）`);
+      if (win && !win.closed) win.location.href = url;
+      else location.href = url;
     }, err => {
+      if (win) win.close();
       appLog('warn', 'supply', `定位失敗：${err.code} ${err.message}`);
       out.textContent = err.code === 1
         ? '沒有允許定位。請到瀏覽器設定把這個網站的「位置」改成允許，再按一次。'
