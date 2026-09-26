@@ -314,7 +314,8 @@ service cloud.firestore {
                     && request.resource.data.spotId.size() <= 10;
     }
     match /trips/kyoto2026/foodLog/{memberId} {
-      // 踩店紀錄：每個人吃過哪些美食店、幾顆星、一句心得（items 是 { 景點id: {stars, note, at} }）。
+      // 踩店紀錄：每個人吃過哪些美食店、幾顆星、一句心得（items 是 { 景點id: {stars, note, at} }；
+      // 錦市場這種市場型景點，一家店一筆，key 是「景點id~流水號」，另有 shop 店名欄位）。
       // 大家都能讀（全家互相看），只能本人寫自己的那一份，最多 80 筆
       allow read: if true;
       allow create, update: if request.auth != null

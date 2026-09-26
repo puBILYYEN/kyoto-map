@@ -1281,3 +1281,6 @@ html, body {
 .food-chip-summary { border-style: dashed; }
 .foodsum-family { display: block; margin: 8px 0; font-size: 14px; }
 .foodsum-text { width: 100%; box-sizing: border-box; margin: 8px 0; padding: 10px; font: inherit; font-size: 14px; line-height: 1.7; border: 1px solid #ddd; border-radius: 8px; }
+.foodlog-shop { width: 100%; box-sizing: border-box; margin: 6px 0 2px; padding: 8px; border: 1px solid #e0c9c6; border-radius: 6px; font: inherit; font-size: 14px; }
+.foodlog-shops li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.foodlog-shop-del { margin-left: auto; border: none; background: none; color: #999; font-size: 16px; cursor: pointer; }

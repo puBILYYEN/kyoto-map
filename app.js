@@ -819,7 +819,7 @@ function renderList() {
       ? `<span class="booking-tag" style="background:${BOOKING_META[spot.booking.level].color}">${BOOKING_META[spot.booking.level].label}</span>`
       : '';
     info.innerHTML =
-      `<div class="spot-name">${spot.name}${tag}${foodLog[spot.id] && !foodLog[spot.id].del && foodLog[spot.id].stars ? ` <span class="spot-eaten">✅ ${'★'.repeat(foodLog[spot.id].stars)}</span>` : ''}</div><div class="spot-area">${spot.area}</div>`;
+      `<div class="spot-name">${spot.name}${tag}${eatenMark(spot)}</div><div class="spot-area">${spot.area}</div>`;
 
     item.appendChild(checkbox);
     item.appendChild(dot);
@@ -896,8 +896,25 @@ function starText(n) { return '★'.repeat(n) + '☆'.repeat(5 - n); }
 function myFoodItems() {
   return Object.entries(foodLog).filter(([, v]) => v && !v.del && v.stars);
 }
+// 市場型（錦市場這種一整條街很多店）：每一家店各記一筆，key 是「景點id~流水號」，
+// 店名存在 shop 欄位。一般的店 key 就是景點 id。
+function spotIdOfKey(key) { return String(key).split('~')[0]; }
+function entriesFor(items, spotId) {
+  return Object.entries(items || {})
+    .filter(([k, v]) => spotIdOfKey(k) === spotId && v && !v.del && v.stars)
+    .sort((a, b) => (a[1].at || 0) - (b[1].at || 0));
+}
+function eatenMark(spot) {
+  const mine = entriesFor(foodLog, spot.id);
+  if (!mine.length) return '';
+  return spot.multiShop
+    ? ` <span class="spot-eaten">✅ 踩了 ${mine.length} 家</span>`
+    : ` <span class="spot-eaten">✅ ${'★'.repeat(mine[0][1].stars)}</span>`;
+}
 
 function foodLogInner(spotId) {
+  const spot = SPOTS.find(s => s.id === spotId);
+  if (spot && spot.multiShop) return multiShopInner(spotId);
   const mine = foodLog[spotId] && !foodLog[spotId].del ? foodLog[spotId] : null;
   const stars = mine ? mine.stars : 0;
   const family = Object.values(familyFoodLogs)
@@ -920,6 +937,28 @@ function foodLogInner(spotId) {
     ${family ? `<div class="foodlog-family-head">👨‍👩‍👧 家人的踩店心得</div><ul class="foodlog-family">${family}</ul>` : ''}`;
 }
 
+function multiShopInner(spotId) {
+  const mine = entriesFor(foodLog, spotId).map(([k, it]) => `<li>
+      <b>${escapeHtml(it.shop || '（沒寫店名）')}</b> <span class="foodlog-stars">${starText(it.stars)}</span>${it.note ? `「${escapeHtml(it.note)}」` : ''}
+      <button type="button" class="foodlog-shop-del" data-key="${escapeHtml(k)}" aria-label="刪除這一家">✕</button></li>`).join('');
+  const family = Object.values(familyFoodLogs).flatMap(m => entriesFor(m.items, spotId).map(([, it]) =>
+    `<li><span class="foodlog-who" style="background:${escapeHtml(m.color || '#888')}">${escapeHtml(m.name || '家人')}</span>
+      <b>${escapeHtml(it.shop || '')}</b> <span class="foodlog-stars">${starText(it.stars)}</span>${it.note ? `「${escapeHtml(it.note)}」` : ''}</li>`)).join('');
+  return `
+    <div class="foodlog-head">🍴 這裡有很多家店，一家一家記：${mine ? `我已經踩了 ${entriesFor(foodLog, spotId).length} 家` : '在這裡吃了哪幾家？'}</div>
+    ${mine ? `<ul class="foodlog-family foodlog-shops">${mine}</ul>` : ''}
+    <input class="foodlog-shop" type="text" maxlength="30" placeholder="店名（例如：玉子燒、豆乳甜甜圈的店）">
+    <div class="foodlog-starbtns">${[1, 2, 3, 4, 5].map(n =>
+      `<button type="button" class="foodlog-star" data-star="${n}" aria-label="${n} 顆星">☆</button>`).join('')}</div>
+    <input class="foodlog-note" type="text" maxlength="60" placeholder="一句心得（例如：現做的超燙超好吃）">
+    <div class="foodlog-actions">
+      <button type="button" class="foodlog-save">➕ 記下這一家</button>
+      <button type="button" class="foodlog-summary">📋 我的踩店清單</button>
+    </div>
+    <div class="foodlog-msg">${foodLogStatusText()}</div>
+    ${family ? `<div class="foodlog-family-head">👨‍👩‍👧 家人在這裡踩的店</div><ul class="foodlog-family">${family}</ul>` : ''}`;
+}
+
 function foodLogStatusText() {
   if (!memberIdentity) return '目前只存在這支手機；用 Google 登入跳棋後，全家會互相看得到。';
   if (foodLogDisabled) return '目前只存在這支手機（全家同步還沒開通，要先發布 Firestore 規則）。';
@@ -939,6 +978,27 @@ function bindFoodLog(root) {
       b.textContent = on ? '★' : '☆';
     });
   }));
+  const spot = SPOTS.find(s => s.id === spotId);
+  if (spot && spot.multiShop) {
+    pick = 0;
+    box.querySelector('.foodlog-save').addEventListener('click', () => {
+      const shop = box.querySelector('.foodlog-shop').value.trim().slice(0, 30);
+      const msg = box.querySelector('.foodlog-msg');
+      if (!shop) { msg.textContent = '先寫店名，才分得出是哪一家'; return; }
+      if (!pick) { msg.textContent = '先點星星給分（1～5 顆）'; return; }
+      const note = box.querySelector('.foodlog-note').value.trim().slice(0, 60);
+      const at = Date.now();
+      foodLog[`${spotId}~${at}`] = { shop, stars: pick, note, at };
+      appLog('info', 'foodlog', `在 ${spotId} 踩了一家 ${pick} 星`);
+      afterFoodLogChange(root);
+    });
+    box.querySelectorAll('.foodlog-shop-del').forEach(btn => btn.addEventListener('click', () => {
+      foodLog[btn.dataset.key] = { del: true, at: Date.now() };
+      afterFoodLogChange(root);
+    }));
+    box.querySelector('.foodlog-summary').addEventListener('click', showFoodSummary);
+    return;
+  }
   box.querySelector('.foodlog-save').addEventListener('click', () => {
     if (!pick) { box.querySelector('.foodlog-msg').textContent = '先點星星給分（1～5 顆）再按踩過了'; return; }
     const note = box.querySelector('.foodlog-note').value.trim().slice(0, 60);
@@ -1052,21 +1112,32 @@ async function startFoodLogListener() {
 // 📋 整理成一段文字，直接貼到 IG、Threads 或 LINE
 function buildFoodSummaryText(includeFamily) {
   const rows = myFoodItems()
-    .map(([sid, it]) => ({ s: SPOTS.find(x => x.id === sid), it }))
+    .map(([key, it]) => ({ key, s: SPOTS.find(x => x.id === spotIdOfKey(key)), it }))
     .filter(x => x.s)
     .sort((a, b) => b.it.stars - a.it.stars || a.it.at - b.it.at);
   const lines = ['🍵 我的京都踩店清單（2026/9/29–10/3）', ''];
-  rows.forEach(({ s, it }, i) => {
-    lines.push(`${i + 1}. ${s.name}｜${s.area}｜${starText(it.stars)}`);
+  rows.forEach(({ key, s, it }, i) => {
+    // 市場裡的店：寫成「錦市場・店名」
+    const title = s.multiShop ? `${s.name}・${it.shop || '（沒寫店名）'}` : s.name;
+    lines.push(`${i + 1}. ${title}｜${s.area}｜${starText(it.stars)}`);
     if (it.note) lines.push(`   「${it.note}」`);
-    if (s.mustTry) lines.push(`   必點：${s.mustTry}`);
-    if (includeFamily) {
+    if (s.mustTry && !s.multiShop) lines.push(`   必點：${s.mustTry}`);
+    if (includeFamily && !s.multiShop) {
       Object.values(familyFoodLogs).forEach(m => {
         const f = m.items && m.items[s.id];
         if (f && !f.del && f.stars) lines.push(`   ${m.name || '家人'}：${starText(f.stars)}${f.note ? `「${f.note}」` : ''}`);
       });
     }
   });
+  if (includeFamily) {
+    // 家人在市場裡踩的店，自己沒踩的也列出來
+    const extra = [];
+    Object.values(familyFoodLogs).forEach(m => Object.entries(m.items || {}).forEach(([k, f]) => {
+      const s = SPOTS.find(x => x.id === spotIdOfKey(k));
+      if (s && s.multiShop && f && !f.del && f.stars) extra.push(`・${m.name || '家人'}：${s.name}・${f.shop || ''} ${starText(f.stars)}${f.note ? `「${f.note}」` : ''}`);
+    }));
+    if (extra.length) lines.push('', '家人在市場裡踩的店：', ...extra);
+  }
   if (!rows.length) lines.push('（還沒有踩店紀錄）');
   lines.push('', '#京都 #京都美食 #京都踩店');
   return lines.join('\n');

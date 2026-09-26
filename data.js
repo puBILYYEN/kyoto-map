@@ -636,7 +636,7 @@ const SPOTS = [
   { id:'s07', categories:['shopping'], name:'祇園花見小路', area:'東山', lat:35.0054928, lng:135.7752402, hours:'24 小時開放（各店家營業時間不一）', desc:'舞妓藝妓風情濃厚的街景，是穿和服拍照的熱門地點。' },
   { id:'s08', categories:['shopping'], name:'新京極商店街', area:'市中心', lat:35.0071037, lng:135.7671558, hours:'各店家營業時間不一', desc:'藥妝、伴手禮、平價服飾聚集的長型商店街，晚上營業到9~10點。' },
   { id:'s09', categories:['shopping'], name:'河原町通（四条周邊）', area:'市中心', lat:35.0037747, lng:135.769309, hours:'24 小時開放（各店家營業時間不一）', desc:'松本清、大國藥妝、SPRING藥妝等大型連鎖藥妝聚集的購物大街。' },
-  { id:'s10', categories:['shopping','food'], foodTags:['japan'], talk:'逛了有「京都廚房」之稱的錦市場。', name:'錦市場', area:'市中心', lat:35.0050258, lng:135.764723, hours:'各店家營業時間不一（多數約 9:00–17:30）', desc:'有「京都廚房」之稱，適合順道採買食品類伴手禮。' },
+  { id:'s10', categories:['shopping','food'], multiShop:true, foodTags:['japan'], talk:'逛了有「京都廚房」之稱的錦市場，一路邊走邊吃。', name:'錦市場', area:'市中心', lat:35.0050258, lng:135.764723, hours:'各店家營業時間不一（多數約 9:00–17:30）', desc:'有「京都廚房」之稱，適合順道採買食品類伴手禮。' },
   { id:'s11', categories:['shopping'], name:'京都車站周邊（Porta地下街／近鐵名店街）', area:'京都車站', lat:34.9867119, lng:135.7597486, labelSide:'left', hours:'Porta B1 11:00–20:30、B2 10:00–20:00／みやこみち 商店 9:00–20:00、餐廳 11:00–22:00', desc:'車站直通，回程前補貨藥妝與伴手禮最方便的地點。' },
   { id:'s12', categories:['shopping'], name:'大丸京都店', area:'市中心', lat:35.0043095, lng:135.7621114, hours:'10:00–20:00（3–7F 至 19:00，8F 餐廳 11:00–22:00）', desc:'地下美食街與藥妝專櫃齊全，百貨式一站購足。' },
   { id:'s13', categories:['shopping'], name:'京都AVANTI', area:'京都車站・八條口', lat:34.983785110854505, lng:135.76011598184127,
