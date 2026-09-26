@@ -1101,8 +1101,8 @@ function showPhrases() {
         <ul class="phrase-tel">
           ${PHRASES.lionOffices.map(e => `
             <li>
-              <a href="tel:${e.number.replace(/[^0-9+]/g, '')}">${e.number}</a>
-              <b>雄獅旅遊 ${e.label}</b>
+              <a href="tel:${(e.dial || e.number).replace(/[^0-9+]/g, '')}">${e.number}</a>
+              <b>雄獅旅遊 ${e.label}</b>${e.dial ? '<span>在大陸當地點這個號碼可以直接撥</span>' : ''}
             </li>`).join('')}
         </ul>
       </details>
