@@ -745,7 +745,8 @@ html, body {
 .marker-shape-star::before,
 .marker-shape-ingot::before,
 .marker-shape-buddha::before,
-.marker-shape-diamond::before {
+.marker-shape-diamond::before,
+.marker-shape-invtriangle::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -784,6 +785,15 @@ html, body {
 .marker-shape-diamond::before {
   clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
   animation: markerColorBlinkCyan 1.1s ease-in-out infinite;
+}
+/* 倒三角：使用者特別指定、要特別注意的景點（例如有預約時段的），紅色快速閃爍 */
+.marker-shape-invtriangle::before {
+  clip-path: polygon(0% 0%, 100% 0%, 50% 100%);
+  animation: markerColorBlinkRed 0.5s ease-in-out infinite;
+}
+@keyframes markerColorBlinkRed {
+  0%, 100% { background: #e00000; }
+  50% { background: #ffb3b3; }
 }
 @keyframes markerColorBlinkCyan {
   0%, 100% { background: #00b8d4; }
