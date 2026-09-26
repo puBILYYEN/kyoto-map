@@ -2249,44 +2249,68 @@ function showAskWarning(text, warnElId = 'askWarning') {
   warn.hidden = false;
 }
 
+// 手機的語音清單是開網頁後才慢慢載入的：第一次按播放時，日文語音常常還沒出現在清單裡。
+// 以前只等 0.4 秒就判定「沒裝日文語音」，而且那次不再重試，導致要按好幾次才會唸。
+// 現在網頁一打開就先開始載入並記住找到的日文語音；按下去還沒載好就最多等 3 秒。
+let cachedJaVoice = null;
+function findJaVoice() {
+  try {
+    return speechSynthesis.getVoices().find(v => v.lang && v.lang.toLowerCase().replace('_', '-').startsWith('ja')) || null;
+  } catch (e) { return null; }
+}
+if ('speechSynthesis' in window) {
+  try {
+    cachedJaVoice = findJaVoice();
+    speechSynthesis.addEventListener('voiceschanged', () => { cachedJaVoice = findJaVoice() || cachedJaVoice; });
+  } catch (e) { /* 不支援就算了，按播放時會說明 */ }
+}
+
 // warnElId：不同面板各自有自己的警告區塊（問路 vs 退稅小幫手），
-// 預設用問路面板的 id，維持既有呼叫端（buildAskPhrase 那邊）不用改。
+// 預設用問路面板的 id，維持既有呼叫端不用改。
 function speakJapanese(text, warnElId = 'askWarning') {
+  const warn = document.getElementById(warnElId);
+  if (warn) warn.hidden = true;   // 上一次的警告先收起來，這次成功就不會一直掛著
   if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
     showAskWarning('這個瀏覽器不支援語音朗讀，請直接把畫面給對方看這句日文。', warnElId);
     return;
   }
   speechSynthesis.cancel();   // 停掉上一次可能還沒播完的
 
-  let handled = false;
-  const trySpeak = () => {
-    if (handled) return;
-    handled = true;
-    const jaVoice = speechSynthesis.getVoices().find(v => v.lang && v.lang.toLowerCase().startsWith('ja'));
-    if (!jaVoice) {
-      showAskWarning(
-        '這台手機還沒有安裝日文語音，播放出來的發音會不準確（可能會變成用中文發音硬唸日文）。\n\n' +
-        '請到手機「設定」裡搜尋「文字轉語音」，選擇文字轉語音引擎的設定 → 安裝語音資料 → ' +
-        '下載「日本語」語音包，裝好後再回來按一次播放。\n\n' +
-        '這段時間可以先直接把畫面給對方看這句日文。',
-        warnElId
-      );
-      return;
-    }
+  const speakWith = (voice) => {
     const utter = new SpeechSynthesisUtterance(text);
     utter.lang = 'ja-JP';
-    utter.voice = jaVoice;
+    utter.voice = voice;
     utter.rate = 0.9;   // 稍微放慢，對方比較聽得清楚
     speechSynthesis.speak(utter);
   };
 
-  // 有些瀏覽器第一次呼叫時語音清單還是空的，要等 voiceschanged 事件才拿得到
-  if (speechSynthesis.getVoices().length) {
-    trySpeak();
-  } else {
-    speechSynthesis.addEventListener('voiceschanged', trySpeak, { once: true });
-    setTimeout(trySpeak, 400);   // 保險：萬一事件沒觸發，還是要判斷一次
-  }
+  // 已經找到過日文語音：馬上唸（在按鈕的點擊當下呼叫，iPhone 比較不會擋）
+  const ready = cachedJaVoice || findJaVoice();
+  if (ready) { cachedJaVoice = ready; speakWith(ready); return; }
+
+  // 還沒載入好：每 0.2 秒看一次，最多等 3 秒
+  const startedAt = Date.now();
+  const poll = setInterval(() => {
+    const v = findJaVoice();
+    if (v) {
+      clearInterval(poll);
+      cachedJaVoice = v;
+      speakWith(v);
+      return;
+    }
+    if (Date.now() - startedAt < 3000) return;
+    clearInterval(poll);
+    let langs = '';
+    try { langs = [...new Set(speechSynthesis.getVoices().map(x => x.lang))].slice(0, 12).join(','); } catch (e) { /* ignore */ }
+    appLog('warn', 'ui', `等了 3 秒還是找不到日文語音（語音清單：${langs || '空的'}）`);
+    showAskWarning(
+      '這台手機還沒有安裝日文語音，播放出來的發音會不準確（可能會變成用中文發音硬唸日文）。\n\n' +
+      '請到手機「設定」裡搜尋「文字轉語音」，選擇文字轉語音引擎的設定 → 安裝語音資料 → ' +
+      '下載「日本語」語音包，裝好後再回來按一次播放。\n\n' +
+      '這段時間可以先直接把畫面給對方看這句日文。',
+      warnElId
+    );
+  }, 200);
 }
 
 function openAskDirections(point, lngLat) {
