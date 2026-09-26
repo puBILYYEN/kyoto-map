@@ -1159,7 +1159,7 @@ function showTaxRefund() {
     </div>
   `;
 
-  document.getElementById('taxPlayBtn').addEventListener('click', () => speakJapanese(p.ja, 'taxWarning'));
+  document.getElementById('taxPlayBtn').addEventListener('click', (e) => speakJapanese(p.ja, 'taxWarning', e.currentTarget));
 
   const progress = document.getElementById('taxProgress');
   document.querySelectorAll('.tax-check').forEach(box => {
@@ -2298,7 +2298,9 @@ if ('speechSynthesis' in window) {
 
 // warnElId：不同面板各自有自己的警告區塊（問路 vs 退稅小幫手），
 // 預設用問路面板的 id，維持既有呼叫端不用改。
-function speakJapanese(text, warnElId = 'askWarning') {
+// btn：播放按鈕本身。等語音載入時在按鈕上顯示百分比——手機不會回報真正的載入進度，
+// 所以是照等待時間估算的（等到上限就是 100%），語音一載好就直接跳 100% 開始唸。
+function speakJapanese(text, warnElId = 'askWarning', btn = null) {
   const warn = document.getElementById(warnElId);
   if (warn) warn.hidden = true;   // 上一次的警告先收起來，這次成功就不會一直掛著
   if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
@@ -2322,16 +2324,28 @@ function speakJapanese(text, warnElId = 'askWarning') {
   // 還沒載入好：每 0.2 秒看一次。這支手機以前找到過日文語音的話，不會再說「沒裝」，
   // 多等一下（8 秒），真的等不到就直接指定用日文唸，讓手機自己挑日文語音
   const knownOk = !!lsGet(JA_OK_KEY);
+  const limit = knownOk ? 8000 : 3000;
   const startedAt = Date.now();
+  if (btn && btn.dataset.loading) return;   // 已經在等了，不要重複排隊
+  const label = btn ? btn.textContent : '';
+  const showPct = (pct) => { if (btn) btn.textContent = `⏳ 載入日文語音… ${pct}%`; };
+  const restore = () => { if (btn) { btn.textContent = label; delete btn.dataset.loading; btn.disabled = false; } };
+  if (btn) { btn.dataset.loading = '1'; btn.disabled = true; }
+  showPct(0);
   const poll = setInterval(() => {
     const v = findJaVoice();
     if (v) {
       clearInterval(poll);
+      showPct(100);
+      setTimeout(restore, 400);
       speakWith(v);
       return;
     }
-    if (Date.now() - startedAt < (knownOk ? 8000 : 3000)) return;
+    const elapsed = Date.now() - startedAt;
+    if (elapsed < limit) { showPct(Math.min(99, Math.round(elapsed / limit * 100))); return; }
     clearInterval(poll);
+    showPct(100);
+    setTimeout(restore, 400);
     if (knownOk) {
       appLog('warn', 'ui', '日文語音 8 秒還沒載好，直接指定 ja-JP 唸');
       speakWith(null);
@@ -2413,7 +2427,7 @@ function openAskDirections(point, lngLat) {
     <div class="ask-warning" id="askWarning" hidden></div>
     <div class="phrase-tip">${ASK_DIRECTIONS.tip}</div>
   `;
-  document.getElementById('askPlayBtn').addEventListener('click', () => speakJapanese(phrase.ja));
+  document.getElementById('askPlayBtn').addEventListener('click', (e) => speakJapanese(phrase.ja, 'askWarning', e.currentTarget));
 
   document.getElementById('askOverlay').hidden = false;
   history.pushState({ ask: true }, '');
