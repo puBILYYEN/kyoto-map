@@ -825,14 +825,17 @@ function showDetail(spotId) {
 // ---------- 打電話給日本人：一鍵開 VoiceTra 翻譯 ----------
 // VoiceTra 是日本政府研究機構 NICT 出的免費語音翻譯 App：說中文，它念日文給對方聽，
 // 對方回答再翻成中文。只在手機顯示（電腦不能打電話）。
-// Android 用 intent 直接叫出 App，沒裝就跳 Google Play；iPhone 沒有公開的
-// 開啟網址，只能開 App Store 頁面，有裝的話那頁會顯示「打開」。
+// Android：Chrome 只准網頁叫出 App 裡標了 BROWSABLE 的畫面，VoiceTra 的主畫面沒有，
+// 用 package 直接叫會失敗、改跳 Google Play（v135 實機回報）。改成請 Google Play 用
+// market://launch 幫忙啟動已安裝的 App；沒裝或 Play 不支援時，退回 VoiceTra 的
+// Google Play 頁面（那頁有「開啟」按鈕）。iPhone 沒有公開的開啟網址，只能開
+// App Store 頁面，有裝的話那頁會顯示「打開」。
 const VOICETRA_PLAY = 'https://play.google.com/store/apps/details?id=jp.go.nict.voicetra';
 const VOICETRA_APPSTORE = 'https://apps.apple.com/app/id581137577';
 function voicetraUrl() {
   if (/Android/i.test(navigator.userAgent)) {
-    return 'intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;'
-      + 'package=jp.go.nict.voicetra;S.browser_fallback_url=' + encodeURIComponent(VOICETRA_PLAY) + ';end';
+    return 'intent://launch?id=jp.go.nict.voicetra#Intent;scheme=market;package=com.android.vending;'
+      + 'S.browser_fallback_url=' + encodeURIComponent(VOICETRA_PLAY) + ';end';
   }
   return VOICETRA_APPSTORE;
 }
@@ -840,8 +843,11 @@ function voicetraButton(label = '🗣️ 開 VoiceTra 翻譯') {
   if (!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) return '';
   // Android 的 intent 網址在同一個分頁開就好（開新分頁會留下一個空白頁）
   const target = /Android/i.test(navigator.userAgent) ? '' : ' target="_blank" rel="noopener noreferrer"';
+  const hint = /Android/i.test(navigator.userAgent)
+    ? '如果跳到 Google Play 的 VoiceTra 頁面，按綠色的「開啟」就好'
+    : 'iPhone 會先到 App Store 的 VoiceTra 頁面，按「打開」就好';
   return `<a class="voicetra-btn" href="${voicetraUrl()}"${target}
-    onclick="appLog('info','voicetra','按了開 VoiceTra')">${label}</a>`;
+    onclick="appLog('info','voicetra','按了開 VoiceTra')">${label}</a><span class="voicetra-hint">${hint}</span>`;
 }
 const VOICETRA_FACE_TIP = '說中文，VoiceTra 會念日文給對方聽；對方回答前，先把翻譯方向切換成「日本語 → 中文」，再讓對方對著手機說，就會翻成中文。';
 // 當面跟日本人說話的地方（景點、日語小抄、退稅、問路）共用的按鈕＋說明
