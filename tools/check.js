@@ -45,7 +45,7 @@ try {
   err(`data.js 無法執行：${e.message}`);
 }
 
-const SHAPES = ['triangle', 'star', 'ingot', 'buddha'];
+const SHAPES = ['triangle', 'star', 'ingot', 'buddha', 'diamond'];
 if (D) {
   const seen = new Map();
   D.SPOTS.forEach((s, i) => {

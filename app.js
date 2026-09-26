@@ -56,7 +56,7 @@ function persistSelection() {
 
 // 特殊標記形狀（三角形/星形/元寶/坐佛）各自的底色，renderMarkers() 也是
 // 在檔案開頭就同步執行，要跟上面 othersState 一樣早宣告避免 TDZ。
-const SHAPE_BASE_COLOR = { triangle: '#ff8f00', star: '#ffcc00', ingot: '#ffcc00', buddha: '#a67c00' };
+const SHAPE_BASE_COLOR = { triangle: '#ff8f00', star: '#ffcc00', ingot: '#ffcc00', buddha: '#a67c00', diamond: '#00b8d4' };
 
 // 有些景點跟境內附屬的店家／設施座標完全相同（例如龍安寺跟西源院、
 // 貴船神社跟貴船溪谷），圖釘會疊在同一個像素上，沒被選取的那個會把
