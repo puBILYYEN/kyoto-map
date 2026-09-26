@@ -809,13 +809,74 @@ function showDetail(spotId) {
     ${buildBookingBox(spot)}
     <div class="detail-desc">${spot.desc}</div>
     <a class="detail-link" href="${buildPlaceUrl(spot)}" target="_blank" rel="noopener noreferrer">📍 在 Google 地圖上看（照片・評價・營業時間）</a>
+    ${buildSupplyBox(spot)}
   `;
+  bindSupplyBox(panel);
   if (mapIsVisible()) {
     map.flyTo({ center: [spot.lng, spot.lat], zoom: 14.5, duration: 600 });
   }
   if (mobileQuery.matches) openDetailSheet();
   renderList();
   updateMarkerVisibility();
+}
+
+// ---------- 天災時最近的補給點 ----------
+// 天災時我們不一定在飯店，可能在山上景點等救援，所以每個景點都列出最近的
+// 「災害求生」點；也可以用手機定位找（人在兩個景點中間時用）。
+// 用 function 宣告（會被提升），不會踩到 TDZ。
+function nearestSupplies(from, excludeId, n) {
+  return SPOTS
+    .filter(s => s.categories.includes('disaster') && s.id !== excludeId)
+    .map(s => ({ s, km: distanceKm(from, s) }))
+    .sort((a, b) => a.km - b.km)
+    .slice(0, n);
+}
+
+function supplyListHtml(from, excludeId) {
+  const near = nearestSupplies(from, excludeId, 3);
+  if (!near.length) return '<div class="supply-empty">還沒有收錄補給點</div>';
+  const far = near[0].km > 8
+    ? '<div class="supply-far">⚠️ 附近 8 公里內還沒有收錄補給點，可以先找附近的便利商店。如果人在山區，遇到天災不要硬走下山，先打 119 或 110，照救援人員指示原地等待，省著用水和手機電量。</div>'
+    : '';
+  const items = near.map(({ s, km }) => `
+    <li><button type="button" class="supply-name" data-supply="${s.id}">${s.name}</button>
+      <span class="supply-meta">直線 ${formatDistance(km)}${s.hours ? '・' + s.hours : ''}</span>
+      <a class="supply-go" href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=walking" target="_blank" rel="noopener noreferrer">🧭 導航</a></li>`).join('');
+  return `${far}<ol class="supply-list">${items}</ol>`;
+}
+
+function buildSupplyBox(spot) {
+  return `
+    <details class="supply-box"${spot.categories.includes('disaster') ? '' : ' open'}>
+      <summary>🆘 天災時離這裡最近的補給點（食物・水・災難包）</summary>
+      <div class="supply-body">${supplyListHtml(spot, spot.id)}</div>
+      <button type="button" class="supply-gps">📡 用我現在的位置找</button>
+      <div class="supply-gps-result"></div>
+    </details>`;
+}
+
+function bindSupplyBox(root) {
+  root.querySelectorAll('[data-supply]').forEach(btn =>
+    btn.addEventListener('click', () => showDetail(btn.dataset.supply)));
+  const gpsBtn = root.querySelector('.supply-gps');
+  if (!gpsBtn) return;
+  gpsBtn.addEventListener('click', () => {
+    const out = root.querySelector('.supply-gps-result');
+    if (!navigator.geolocation) { out.textContent = '這支手機的瀏覽器不支援定位'; return; }
+    out.textContent = '定位中…（第一次會問要不要允許位置，請按允許）';
+    navigator.geolocation.getCurrentPosition(pos => {
+      const here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      appLog('info', 'supply', `用定位找補給點 ${here.lat.toFixed(4)},${here.lng.toFixed(4)}`);
+      out.innerHTML = supplyListHtml(here, null);
+      out.querySelectorAll('[data-supply]').forEach(btn =>
+        btn.addEventListener('click', () => showDetail(btn.dataset.supply)));
+    }, err => {
+      appLog('warn', 'supply', `定位失敗：${err.code} ${err.message}`);
+      out.textContent = err.code === 1
+        ? '沒有允許定位。請到瀏覽器設定把這個網站的「位置」改成允許，再按一次。'
+        : '定位失敗（山區可能收不到 GPS），請改看上面依景點算的清單。';
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+  });
 }
 
 // ---------- 多選與路線 ----------

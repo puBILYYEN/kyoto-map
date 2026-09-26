@@ -554,6 +554,32 @@ html, body {
 }
 .detail-link:hover { background: #f1e6d8; }
 
+/* 天災時最近的補給點 */
+.supply-box {
+  margin-top: 14px;
+  border: 1px solid #e65100;
+  border-radius: 8px;
+  background: #fff6ef;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+.supply-box summary { cursor: pointer; font-weight: 600; color: #b23c00; }
+.supply-list { margin: 8px 0 4px; padding-left: 20px; }
+.supply-list li { margin-bottom: 7px; line-height: 1.6; }
+.supply-name {
+  border: none; background: none; padding: 0; font: inherit;
+  color: var(--accent); text-decoration: underline; cursor: pointer; text-align: left;
+}
+.supply-meta { display: block; color: #666; font-size: 12px; }
+.supply-go { font-size: 12px; color: #b23c00; }
+.supply-far { margin: 8px 0; color: #b23c00; line-height: 1.6; }
+.supply-empty { margin: 8px 0; color: #666; }
+.supply-gps {
+  margin-top: 4px; padding: 6px 10px; border: 1px solid #e65100; border-radius: 6px;
+  background: #fff; color: #b23c00; font: inherit; cursor: pointer;
+}
+.supply-gps-result:not(:empty) { margin-top: 6px; }
+
 .detail-actions {
   display: none;
   gap: 8px;
