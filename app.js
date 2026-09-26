@@ -2262,16 +2262,38 @@ let guideMemberKeys = {};   // 'm1' -> 家人的 uid
 function idsToSpots(ids) { return ids.map(id => SPOTS.find(s => s.id === id)).filter(Boolean); }
 function routeText(spots) { return spots.map(s => `[${s.id}] ${s.name}`).join(' → '); }
 
-// 一個人的清單：目前順序＋算好的順路順序（從飯店出發），給導遊判斷順不順路
+// 依距離排順路，但「住宿與交通」（機場、車站、飯店）是抵達／離開用的點，維持原本的位置不動。
+// 以前把關西機場也拿去排，結果被排到最前面，直線總長變成兩百公里。
+// 開頭連續的住宿與交通點之後，從最後一個（通常是飯店）出發排其餘景點。
+function plannedOrderIds(ids) {
+  const spots = idsToSpots(ids);
+  const fixed = (s) => s.categories.includes('stay');
+  let lead = 0;
+  while (lead < spots.length && fixed(spots[lead])) lead++;
+  const start = lead ? spots[lead - 1] : routeStart();
+  const planned = planRouteOrder(spots.filter(s => !fixed(s)), start);
+  let k = 0;
+  return spots.map(s => (fixed(s) ? s : planned[k++])).map(s => s.id);
+}
+
+// 路線總長：開頭連續的機場／車站／飯店不算（那是抵達的過程，不是這趟要比較的部分），
+// 從最後一個（通常是飯店）開始算其餘景點
+function tripLengthKm(ids) {
+  const spots = idsToSpots(ids);
+  let lead = 0;
+  while (lead < spots.length && spots[lead].categories.includes('stay')) lead++;
+  return routeLengthKm(lead ? spots[lead - 1] : routeStart(), spots.slice(lead));
+}
+
+// 一個人的清單：目前順序＋算好的順路順序，給導遊判斷順不順路
 function describeRoute(label, spots) {
-  const start = routeStart();
-  const lines = [`${label}目前的順序：${routeText(spots)}（從飯店出發直線總長 ${formatDistance(routeLengthKm(start, spots))}）`];
+  const lines = [`${label}目前的順序：${routeText(spots)}（直線總長 ${formatDistance(tripLengthKm(spots.map(s => s.id)))}）`];
   if (spots.length >= 2) {
-    const planned = planRouteOrder(spots, start);
+    const planned = idsToSpots(plannedOrderIds(spots.map(s => s.id)));
     const same = planned.every((s, i) => s === spots[i]);
     lines.push(same
       ? '  → 依距離算，這已經是最順路的順序'
-      : `  → 依距離算出的順路順序：${routeText(planned)}（總長 ${formatDistance(routeLengthKm(start, planned))}）`);
+      : `  → 依距離算出的順路順序：${routeText(planned)}（總長 ${formatDistance(tripLengthKm(planned.map(s => s.id)))}）`);
   }
   return lines.join('\n');
 }
@@ -2317,15 +2339,20 @@ function buildGuideContext(question) {
   const someoneHasRoute = selected.length >= 2 || family.some(([, m]) => m.spotIds.length >= 2);
   if (someoneHasRoute) {
     parts.push(`
-【調整順序的格式（系統用）】
-- 使用者請你排順序、調整路線、問順不順路時，可以在回答最後另起一行加上：
+【調整順序的格式（系統用，非常重要）】
+- 使用者請你排順序、調整路線、問順不順路時，**把標記放在回答的最前面**，一個標記一行，寫完標記才開始寫說明：
   [[ORDER: id1,id2,…]] ← 調整使用者自己的順序
   [[ORDER@m1: id1,id2,…]] ← 建議家人 m1 的順序（系統會產生連結，讓使用者傳給那位家人）
+  （回答長度有上限，標記放在最後會被截斷，所以一定要放最前面。）
 - 只能重新排列，不能刪除、不能新增：標記裡必須剛好是那個人目前選的全部景點，一個都不能少。
-  想建議新增景點用 [[ADD: …]]；覺得某個景點不適合，只能在文字裡說明，讓他們自己決定要不要拿掉。
+  想建議新增景點用 [[ADD: …]]。
+- 使用者要求刪除景點時：你沒辦法刪除，文字要明確寫「我沒辦法幫你刪除，要拿掉的話請在已選景點按 ✕」，
+  絕對不能說「已刪除」「已移除」。可以說明為什麼建議拿掉，讓他們自己決定。
+- 住宿與交通（機場、車站、飯店）是抵達、離開用的點，除非使用者要求，位置不要動。
 - 可以直接採用上面依距離算好的順路順序，也可以依開放時間、預約時段、用餐、長輩體力調整；
-  多人都選的景點盡量排在相近的位置，方便大家一起行動。調整時要在文字裡說明理由。
-- 標記使用者看不到，前面的文字要把新的先後順序講清楚（寫景點名稱，不要只寫代號）。`.trim());
+  多人都選的景點盡量排在相近的位置，方便大家一起行動。
+- 標記使用者看不到。說明文字控制在 200 字內，只講重點理由；
+  文字裡一律寫景點名稱和家人的名字，不要寫 [t01]、v16、m1 這種代號。`.trim());
   }
 
   const active = SPOTS.find(s => s.id === activeSpotId);
@@ -2410,12 +2437,15 @@ function extractGuideTags(answer) {
   const splitIds = (str) => str.split(/[,，\s]+/).map(x => x.trim()).filter(Boolean);
   const addIds = [];
   const orders = [];
-  const text = answer.replace(/\[\[\s*(ADD|ORDER)(?:@(m\d+))?\s*[:：]\s*([^\]]*)\]\]/gi, (m, kind, who, list) => {
+  let text = answer.replace(/\[\[\s*(ADD|ORDER)(?:@(m\d+))?\s*[:：]\s*([^\]]*)\]\]/gi, (m, kind, who, list) => {
     if (kind.toUpperCase() === 'ADD') addIds.push(...splitIds(list));
     else orders.push({ who: who ? who.toLowerCase() : 'self', ids: splitIds(list) });
     return '';
-  }).trim();
-  return { text, addIds, orders };
+  });
+  // 回答被後端的長度上限截斷時，最後會留下半截標記（例如「[[ORDER: b01,b0」），不能給使用者看到
+  let truncated = false;
+  text = text.replace(/\[\[[^\]\n]*(?:\][^\]\n]*)?(?=\n|$)/g, () => { truncated = true; return ''; });
+  return { text: text.replace(/\n{3,}/g, '\n\n').trim(), addIds, orders, truncated };
 }
 
 // 把導遊建議的景點加進「已選景點」。只接受真的存在於資料庫的 id
@@ -2460,18 +2490,18 @@ function addChatActions(buttons) {
 function spotNames(ids) { return idsToSpots(ids).map(s => s.name); }
 
 // 導遊建議「自己」的新順序：先給使用者看，按了才套用，套用後還可以改回來
-function proposeOwnOrder(proposal) {
+function proposeOwnOrder(proposal, fallback) {
   const next = reorderKeepAll(selectedIds, proposal);
   if (next.join(',') === selectedIds.join(',')) return;
-  const start = routeStart();
-  const before = routeLengthKm(start, idsToSpots(selectedIds));
-  const after = routeLengthKm(start, idsToSpots(next));
+  const before = tripLengthKm(selectedIds);
+  const after = tripLengthKm(next);
   const kept = selectedIds.filter(id => !proposal.includes(id));
   appLog('info', '導遊', `建議我的新順序：${next.join(',')}（導遊漏掉、保留在最後：${kept.join(',') || '無'}）`);
 
   addChatMessage('bot',
-    '🔀 導遊建議的新順序：\n' + spotNames(next).map((n, i) => `${i + 1}. ${n}`).join('\n') +
-    `\n\n從飯店出發的直線總長：${formatDistance(before)} → ${formatDistance(after)}` +
+    (fallback ? '🔀 導遊沒有附上可以直接套用的順序，這是網站依直線距離算出的順路順序（機場、車站、飯店維持原位）：\n'
+              : '🔀 導遊建議的新順序：\n') + spotNames(next).map((n, i) => `${i + 1}. ${n}`).join('\n') +
+    `\n\n直線總長：${formatDistance(before)} → ${formatDistance(after)}` +
     (kept.length ? `\n（導遊漏掉的「${spotNames(kept).join('、')}」已經幫你保留，排在最後面）` : '') +
     '\n只會調整順序，不會刪掉你選的任何景點。', 'chat-msg-ok');
 
@@ -2502,20 +2532,20 @@ function proposeOwnOrder(proposal) {
 
 // 導遊建議「家人」的新順序：Firestore 規則只允許每個人改自己的資料，
 // 所以不直接改，而是產生 #order= 連結，讓使用者用 LINE 傳給那位家人，他點開就套用
-function proposeMemberOrder(key, proposal) {
+function proposeMemberOrder(key, proposal, fallback) {
   const uid = guideMemberKeys[key];
   const m = uid && othersState[uid];
   if (!m || !Array.isArray(m.spotIds) || !m.spotIds.length) return;
   const next = reorderKeepAll(m.spotIds, proposal);
   if (next.join(',') === m.spotIds.join(',')) return;
   const name = m.name || '家人';
-  const start = routeStart();
-  const before = routeLengthKm(start, idsToSpots(m.spotIds));
-  const after = routeLengthKm(start, idsToSpots(next));
+  const before = tripLengthKm(m.spotIds);
+  const after = tripLengthKm(next);
   appLog('info', '導遊', `建議 ${name} 的新順序：${next.join(',')}`);
 
   addChatMessage('bot',
-    `🔀 給「${name}」的建議順序：\n` + spotNames(next).map((n, i) => `${i + 1}. ${n}`).join('\n') +
+    (fallback ? `🔀 給「${name}」的順路順序（網站依直線距離算的，機場、車站、飯店維持原位）：\n`
+              : `🔀 給「${name}」的建議順序：\n`) + spotNames(next).map((n, i) => `${i + 1}. ${n}`).join('\n') +
     `\n\n直線總長：${formatDistance(before)} → ${formatDistance(after)}` +
     `\n只會調整${name}的順序，不會刪掉他選的景點。按下面的按鈕把連結傳給${name}，他點開就會套用。`, 'chat-msg-ok');
 
@@ -2587,12 +2617,34 @@ async function sendToGuide(text) {
     }
     const data = await res.json();
     const rawAnswer = (data && data.answer) ? data.answer : '導遊沒有回覆內容，請再問一次。';
-    const { text: answer, addIds, orders } = extractGuideTags(rawAnswer);
+    const { text: answer, addIds, orders, truncated } = extractGuideTags(rawAnswer);
     thinking.remove();
+    appLog(truncated ? 'warn' : 'info', '導遊', `回答 ${rawAnswer.length} 字，標記：ADD ${addIds.length} 個、ORDER ${orders.length} 個` +
+      (truncated ? '，有不完整的標記（回答被長度上限截斷）' : ''));
     addChatMessage('bot', answer || '（導遊只回了調整建議，請看下面）');
+    // 導遊沒辦法刪除景點，但 AI 偶爾還是會說「已刪除」，補一句免得家人以為景點不見了
+    if (/(已|幫你|替你)[^。\n]{0,20}(刪除|移除|刪掉|拿掉)/.test(answer)) {
+      addChatMessage('bot', '提醒：導遊沒辦法刪除景點，你選的景點都還在。要拿掉的話，請在「已選景點」按 ✕。', 'chat-msg-warn');
+    }
     chatState.history.push({ q: question, a: answer });
     applyGuideSuggestions(addIds);
     orders.forEach(o => (o.who === 'self' ? proposeOwnOrder(o.ids) : proposeMemberOrder(o.who, o.ids)));
+
+    // 導遊沒照格式給出順序（例如回答太長被截斷），但使用者明明是在問排順序：
+    // 改由網站提供自己算好的順路順序，一樣可以按套用，功能不會因為 AI 沒照格式就失效
+    if (/順路|順序|排序|排一下|路線|怎麼排/.test(question)) {
+      if (!orders.some(o => o.who === 'self') && selectedIds.length >= 3) {
+        proposeOwnOrder(plannedOrderIds(selectedIds), true);
+      }
+      if (/全家|家人|大家|每個人|其他人/.test(question)) {
+        Object.entries(guideMemberKeys).forEach(([key, uid]) => {
+          const m = othersState[uid];
+          if (!orders.some(o => o.who === key) && m && Array.isArray(m.spotIds) && m.spotIds.length >= 3) {
+            proposeMemberOrder(key, plannedOrderIds(m.spotIds), true);
+          }
+        });
+      }
+    }
   } catch (err) {
     thinking.remove();
     console.warn('[導遊] 失敗：', err);

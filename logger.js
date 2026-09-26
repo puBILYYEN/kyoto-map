@@ -170,6 +170,9 @@
       hints.push(`⚠️ 線上導遊失敗：${Object.entries(codes).map(([c, n]) => `${c}×${n}`).join('、')}\n#     （E1 沒網路、E2 沒設定後端、E3 連不上後端、E4 等太久、E4xx/E5xx 後端回傳錯誤）`);
     }
 
+    const cut = list.filter(e => e.g === '導遊' && /不完整的標記/.test(e.m));
+    if (cut.length) hints.push(`⚠️ 導遊回答被長度上限截斷 ${cut.length} 次（後端 max_tokens 600）\n#     → 網站已自動清掉半截標記，並改提供自己算的順路順序；常發生的話可考慮調高 ai-backend/server.js 的 max_tokens 並到 Render 重新部署`);
+
     const offline = list.filter(e => e.g === 'network' && /offline/.test(e.m));
     if (offline.length) hints.push(`ℹ️ 斷線 ${offline.length} 次（最後 ${localTime(last(offline).t, true)}）`);
 
