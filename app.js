@@ -849,6 +849,7 @@ function buildSupplyBox(spot) {
   return `
     <details class="supply-box"${spot.categories.includes('disaster') ? '' : ' open'}>
       <summary>🆘 天災時離這裡最近的補給點（食物・水・災難包）</summary>
+      ${spot.id === DISASTER_ROUTE.fromSpot ? `<a class="supply-route" href="${DISASTER_ROUTE.url}" target="_blank" rel="noopener noreferrer">${DISASTER_ROUTE.label}</a>` : ''}
       <div class="supply-body">${supplyListHtml(spot, spot.id)}</div>
       <button type="button" class="supply-gps">📡 用我現在的位置找，直接開 Google 導航</button>
       <div class="supply-gps-result"></div>
@@ -874,6 +875,15 @@ function bindSupplyBox(root) {
       out.innerHTML = '<div class="supply-gps-note">已開 Google 導航到第 1 個；想改去別家，點下面的「🧭 導航」：</div>' + supplyListHtml(here, null);
       out.querySelectorAll('[data-supply]').forEach(btn =>
         btn.addEventListener('click', () => showDetail(btn.dataset.supply)));
+      // 人在飯店附近：直接開家人事先規劃好的採購路線
+      const home = SPOTS.find(s => s.id === DISASTER_ROUTE.fromSpot);
+      if (home && distanceKm(here, home) <= DISASTER_ROUTE.nearKm) {
+        appLog('info', 'supply', `人在飯店附近（${formatDistance(distanceKm(here, home))}），開規劃好的採購路線`);
+        out.innerHTML = `<div class="supply-gps-note">你在飯店附近，已開我們規劃好的採購路線。</div><a class="supply-route" href="${DISASTER_ROUTE.url}" target="_blank" rel="noopener noreferrer">${DISASTER_ROUTE.label}</a>`;
+        if (win && !win.closed) win.location.href = DISASTER_ROUTE.url;
+        else location.href = DISASTER_ROUTE.url;
+        return;
+      }
       const nearest = nearestSupplies(here, null, 1)[0];
       if (!nearest) { if (win) win.close(); return; }
       const url = `https://www.google.com/maps/dir/?api=1&origin=${here.lat},${here.lng}&destination=${nearest.s.lat},${nearest.s.lng}&travelmode=walking`;

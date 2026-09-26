@@ -1210,3 +1210,7 @@ html, body {
   .topbar-actions button { font-size: 11.5px; padding: 8px 6px; }
 }
 .supply-gps-note { color: #b23c00; margin-bottom: 4px; }
+.supply-route {
+  display: block; margin: 8px 0 4px; padding: 9px 10px; border-radius: 6px;
+  background: #e65100; color: #fff; font-weight: 600; text-align: center; text-decoration: none;
+}
