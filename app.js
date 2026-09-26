@@ -1096,6 +1096,16 @@ function showPhrases() {
             <span>${e.note}</span>
           </li>`).join('')}
       </ul>
+      <details class="lion-offices">
+        <summary>🌏 雄獅旅遊其他國外據點（點開看）</summary>
+        <ul class="phrase-tel">
+          ${PHRASES.lionOffices.map(e => `
+            <li>
+              <a href="tel:${e.number.replace(/[^0-9+]/g, '')}">${e.number}</a>
+              <b>雄獅旅遊 ${e.label}</b>
+            </li>`).join('')}
+        </ul>
+      </details>
     </div>
 
     ${PHRASES.groups.map(g => `

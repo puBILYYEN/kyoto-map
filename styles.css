@@ -510,6 +510,8 @@ html, body {
   accent-color: var(--accent);
 }
 .tax-checklist li.done span { color: var(--text-muted); text-decoration: line-through; }
+.lion-offices { margin-top: 10px; }
+.lion-offices summary { cursor: pointer; font-size: 14px; color: var(--text-muted); padding: 6px 0; }
 .packing-progress { margin: 10px 0 4px; font-size: 15px; }
 .packing-progress b { font-size: 18px; color: var(--accent); }
 .packing-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
