@@ -726,6 +726,7 @@ const TABS = [
   { cat: 'restroom', label: CATEGORY_META.restroom.label },
   { cat: 'disaster', label: CATEGORY_META.disaster.label },
   { cat: 'food', label: CATEGORY_META.food.label },
+  { cat: 'other', label: CATEGORY_META.other.label },
 ];
 
 // 分類越加越多（目前 20+ 個），改用下拉選單，不然分類清單自己就佔掉
