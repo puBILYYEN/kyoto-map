@@ -461,9 +461,9 @@ const TAX_REFUND = {
 
 const SPOTS = [
   // ------- 住宿與交通（2026/9/29-10/3 行程）-------
-  { id:'b01', categories:['stay'], name:'RESI STAY HEART（住宿）', area:'京都車站・下京區飴屋町', shape:'star', lat:34.98758740790513, lng:135.7608489355819,
+  { id:'b01', categories:['stay'], name:'RESI STAY HEART（住宿）', area:'京都車站・下京區飴屋町', shape:'star', lat:34.9900075342358, lng:135.76093723766013,
     address:'〒600-8148 京都府京都市下京区飴屋町253',
-    hours:'入住 15:00–24:00／退房 11:00', desc:'本次行程下榻的公寓式飯店。市巴士「烏丸七条」站步行1分鐘，JR／地下鐵京都站步行約7分鐘，往嵐山、宇治、伏見都可從京都車站直接出發。搭計程車時可直接出示地址：京都市下京区飴屋町253。<br><br>🛎️ <b>入住怎麼找路</b>：櫃台在這棟建築的 <b>5 樓</b>，入口在 <b>1 樓「チケットショップ東海」（Tickets Shop Tokai）</b>旁邊，看到這家票券店的招牌就是這棟樓。<br>從京都車站 JR 中央口／烏丸口出站，沿烏丸通往北走，過了京都塔、京都ヨドバシ（電器行）那個路口後，右轉進七条通（Shiokoji st.），沿路會先經過 JTB 旅行社、柏青哥店，再看到 BIG ECHO 卡拉OK，飯店入口就在 BIG ECHO 隔壁那棟；對面是大國藥妝（Daikoku）。整段路走路約 7～10 分鐘。<br>📍 <a href="https://www.google.com/maps/dir/?api=1&origin=34.985849,135.7587667&destination=34.98758740790513,135.7608489355819&travelmode=walking" target="_blank" rel="noopener noreferrer">🚶 開 Google 地圖導航（京都車站 → 飯店，實際街道路線）</a>' },
+    hours:'入住 15:00–24:00／退房 11:00', desc:'本次行程下榻的公寓式飯店，這裡是<b>實際過夜的房間位置</b>。市巴士「烏丸七条」站步行1分鐘，JR／地下鐵京都站步行約7分鐘，往嵐山、宇治、伏見都可從京都車站直接出發。搭計程車時可直接出示地址：京都市下京区飴屋町253。<br><br>⚠️ <b>入住當天要先去別的地方辦手續</b>：這棟公寓沒有現場櫃台，要先到「RESI STAY HEART 入住櫃台」辦理入住手續、拿鑰匙，辦完再走過來這裡放行李、過夜（兩邊相距約 260 公尺，走路約 3～4 分鐘），詳細位置見「入住櫃台」那個景點。<br>📍 <a href="https://www.google.com/maps/dir/?api=1&origin=34.98764014717281,135.7608489355819&destination=34.9900075342358,135.76093723766013&travelmode=walking" target="_blank" rel="noopener noreferrer">🚶 開 Google 地圖導航（入住櫃台 → 房間，實際街道路線）</a>' },
   { id:'b02', categories:['stay'], name:'關西國際機場（KIX）', area:'大阪府泉佐野', lat:34.4319994, lng:135.2366019,
     booking:{ level:'permit', note:'入境前請完成 Visit Japan Web 登錄（入境審查＋海關申報二合一 QR Code，最晚入境前 6 小時）。詳見上方「行前準備」。' }, hours:'航廈 24 小時開放（樂桃在第 2 航廈，報到截止為起飛前 30 分鐘）', desc:'去程9/29 MM024與回程10/3 MM027的進出機場，樂桃航空在第2航廈，與第1航廈之間需搭免費接駁車。往返京都可搭JR HARUKA特急，單程約75~90分鐘。' },
   { id:'b03', categories:['stay'], name:'京都車站', area:'京都車站', lat:34.985849, lng:135.7587667,
@@ -516,6 +516,8 @@ const SPOTS = [
     address:'京都府宇治市小倉町西山10-1',
     hours:'24 小時營業',
     desc:'宇治市區北側，24小時營業，往返市區與宇治的路上可以順路加油。' },
+  { id:'b17', categories:['stay'], name:'RESI STAY HEART 入住櫃台', area:'京都車站・下京區', shape:'star', lat:34.98764014717281, lng:135.7608489355819,
+    hours:'請以訂房確認信上的入住時間為準', desc:'⚠️ 這裡<b>不是過夜的房間</b>，是辦理入住手續、拿鑰匙的地方，辦完後還要走約 260 公尺（3～4 分鐘）去「RESI STAY HEART（住宿）」那個房間放行李。<br><br>🛎️ <b>怎麼找這棟樓</b>：櫃台在這棟建築的 <b>5 樓</b>，入口在 <b>1 樓「チケットショップ東海」（Tickets Shop Tokai）</b>旁邊，看到這家票券店的招牌就是這棟樓。<br>從京都車站 JR 中央口／烏丸口出站，沿烏丸通往北走，過了京都塔、京都ヨドバシ（電器行）那個路口後，右轉進七条通（Shiokoji st.），沿路會先經過 JTB 旅行社、柏青哥店，再看到 BIG ECHO 卡拉OK，入口就在 BIG ECHO 隔壁那棟；對面是大國藥妝（Daikoku）。整段路走路約 7～10 分鐘。<br>📍 <a href="https://www.google.com/maps/dir/?api=1&origin=34.985849,135.7587667&destination=34.98764014717281,135.7608489355819&travelmode=walking" target="_blank" rel="noopener noreferrer">🚶 開 Google 地圖導航（京都車站 → 入住櫃台，實際街道路線）</a>' },
   { id:'b16', categories:['stay'], name:'Rental819 京都中央（租機車）', shape:'diamond', area:'西院・右京區', lat:35.007966063525636, lng:135.72969514000806,
     address:'京都府京都市右京区西院下花田町28-141',
     hours:'7:00–18:30（每週三、週四公休）',
