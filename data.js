@@ -55,6 +55,7 @@ const CATEGORY_META = {
   disaster: { label: '災害求生', color: '#e65100' },
   food: { label: '美食', color: '#c62828' },
   other: { label: '其他', color: '#546e7a' },
+  hairband: { label: '尋找矽膠髮圈', color: '#8e44ad' },
 };
 
 // 預約／申請的三種等級
@@ -1099,4 +1100,11 @@ const SPOTS = [
     address:'京都府京都市中京区西ノ京西鹿垣町63番地',
     hours:'10:00–24:00（SIM 即日開通受理到 19:00）',
     desc:'⚠️ 座標為依地址估算，尚未用Google地圖核對。也有中古手機、SIM卡服務，營業到半夜。電話 075-803-2659。' },
+  { id:'g01', categories:['hairband'], name:'DAISO 京都西院駅前店', area:'西院・右京區', lat:35.0065, lng:135.7304,
+    address:'京都府京都市右京区西院東淳和院町6番地1',
+    hours:'10:00–20:00',
+    desc:'⚠️ 座標為依地址估算，尚未用Google地圖核對。離 Rental819 租機車行最近的 100 円店，走路約 2～3 分鐘。要找的是「シリコーンリングゴム」（矽膠圈），單色或彩色六入一包 110 円，無接縫不易斷，可以代替 Beeline Moto 固定帶。在阪急西院駅出口往北約 100 公尺、西大路通上。' },
+  { id:'g02', categories:['hairband'], name:'スギ薬局 西院店', area:'西院・右京區', lat:35.0068, lng:135.7302,
+    hours:'請以店家實際公告為準',
+    desc:'⚠️ 座標為依地址估算，尚未用Google地圖核對。備案：DAISO 沒貨或已關門時，這家藥妝店的美容美髮用品區通常也有賣矽膠髮圈，離 Rental819 一樣很近，在西大路四条路口附近。' },
 ];

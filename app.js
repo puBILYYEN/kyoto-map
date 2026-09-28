@@ -727,6 +727,7 @@ const TABS = [
   { cat: 'disaster', label: CATEGORY_META.disaster.label },
   { cat: 'food', label: CATEGORY_META.food.label },
   { cat: 'other', label: CATEGORY_META.other.label },
+  { cat: 'hairband', label: CATEGORY_META.hairband.label },
 ];
 
 // 分類越加越多（目前 20+ 個），改用下拉選單，不然分類清單自己就佔掉
