@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>我的生き甲斐</title>
+  <meta name="description" content="用日本 ikigai（生き甲斐）四個圓，一步一步找出你喜歡、擅長、世界需要、又能賺錢的事。">
+  <meta name="theme-color" content="#f6f1e7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1b1a17" media="(prefers-color-scheme: dark)">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">生</span>
+      <div>
+        <div class="brand-title">我的生き甲斐</div>
+        <div class="brand-sub">找到你每天起床的理由</div>
+      </div>
+    </div>
+    <button class="icon-btn" id="menuBtn" aria-haspopup="dialog" aria-label="備份與設定">⋯</button>
+  </header>
+
+  <nav class="steps" id="steps" aria-label="步驟"></nav>
+
+  <main id="view" tabindex="-1"></main>
+
+  <footer class="pager" id="pager">
+    <button class="btn ghost" id="prevBtn">← 上一步</button>
+    <button class="btn primary" id="nextBtn">下一步 →</button>
+  </footer>
+
+  <dialog id="menu">
+    <form method="dialog" class="menu-box">
+      <h2>備份與設定</h2>
+      <p class="muted">資料只存在這台裝置的瀏覽器裡，不會上傳。換手機前記得先匯出備份。</p>
+      <button type="button" class="btn" id="exportBtn">⬇️ 匯出備份檔（.json）</button>
+      <label class="btn file-btn">⬆️ 匯入備份檔
+        <input type="file" id="importInput" accept="application/json,.json" hidden>
+      </label>
+      <button type="button" class="btn" id="copyBtn">📋 複製文字摘要</button>
+      <button type="button" class="btn" id="printBtn">🖨️ 列印／存成 PDF</button>
+      <button type="button" class="btn danger" id="resetBtn">🗑️ 全部清除重來</button>
+      <button class="btn ghost" value="close">關閉</button>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
